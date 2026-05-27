@@ -189,6 +189,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
           monthlyFee: Number(p.monthly_fee), textRepository: p.text_repository || [],
           mediaRepository: p.media_repository || [], brandColors: p.brand_colors || [],
           typography: p.typography || undefined,
+          driveFolderId: p.typography?.driveFolderId,
           collaborators: p.collaborators || []
         })));
       }
@@ -240,6 +241,8 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
       }
 
       if (sRes.data) {
+        let loadedExpenses: any[] = [];
+        let loadedTracking: any[] = [];
         sRes.data.forEach(set => {
           if (set.key === 'studioLogo') setStudioLogo(set.value);
           if (set.key === 'dashboardBanner') setDashboardBanner(set.value);
@@ -249,10 +252,10 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
           if (set.key === 'loginTitle') setLoginTitle(set.value);
           if (set.key === 'loginSubtitle') setLoginSubtitle(set.value);
           if (set.key === 'expenses_json') {
-             try { setExpenses(JSON.parse(set.value)); } catch(e) { setExpenses([]); }
+             try { loadedExpenses = JSON.parse(set.value); setExpenses(loadedExpenses); } catch(e) { setExpenses([]); }
           }
           if (set.key === 'expense_tracking_json') {
-             try { setExpenseTracking(JSON.parse(set.value)); } catch(e) { setExpenseTracking([]); }
+             try { loadedTracking = JSON.parse(set.value); setExpenseTracking(loadedTracking); } catch(e) { setExpenseTracking([]); }
           }
           if (set.key === 'financeSettings') {
              try { setFinanceSettings(JSON.parse(set.value)); } catch(e) { setFinanceSettings({ estTaxes: 0 }); }
@@ -279,6 +282,23 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
              try { setIncomes(JSON.parse(set.value)); } catch(e) { setIncomes([]); }
           }
         });
+        
+        if (loadedExpenses.length > 0 && loadedTracking.length > 0) {
+           let needsMigration = false;
+           loadedTracking.forEach(t => {
+              if (t.incomeId) {
+                 const exp = loadedExpenses.find(e => e.id === t.id);
+                 if (exp && !exp.incomeId) {
+                    exp.incomeId = t.incomeId;
+                    needsMigration = true;
+                 }
+              }
+           });
+           if (needsMigration) {
+              setExpenses([...loadedExpenses]);
+              supabase.from('settings').upsert({ key: 'expenses_json', value: JSON.stringify(loadedExpenses) }).then();
+           }
+        }
       }
     } catch (e) { console.error("Critical Sync Failure:", e); } finally { if (!silent) setIsSyncing(false); }
   }, []);
@@ -537,40 +557,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
           showToast("Error al eliminar recibo", "error");
         }
       },
-      addServiceCatalogItem: async (data) => {
-        try {
-          const newItem: ServiceCatalogItem = { ...data, id: `svc-${Date.now()}` };
-          const nextList = [...servicesCatalog, newItem];
-          const { error } = await supabase.from('settings').upsert({ key: 'services_catalog_json', value: JSON.stringify(nextList) });
-          if (error) throw error;
-          setServicesCatalog(nextList);
-          showToast("Servicio agregado al catálogo");
-        } catch (err) {
-          showToast("Error al guardar servicio", "error");
-        }
-      },
-      updateServiceCatalogItem: async (id, data) => {
-        try {
-          const nextList = servicesCatalog.map(s => s.id === id ? { ...s, ...data } : s);
-          const { error } = await supabase.from('settings').upsert({ key: 'services_catalog_json', value: JSON.stringify(nextList) });
-          if (error) throw error;
-          setServicesCatalog(nextList);
-          showToast("Servicio actualizado");
-        } catch (err) {
-          showToast("Error al actualizar servicio", "error");
-        }
-      },
-      deleteServiceCatalogItem: async (id) => {
-        try {
-          const nextList = servicesCatalog.filter(s => s.id !== id);
-          const { error } = await supabase.from('settings').upsert({ key: 'services_catalog_json', value: JSON.stringify(nextList) });
-          if (error) throw error;
-          setServicesCatalog(nextList);
-          showToast("Servicio eliminado del catálogo");
-        } catch (err) {
-          showToast("Error al eliminar servicio", "error");
-        }
-      },
+
       createNotification,
       markAllChatNotificationsAsRead: () => {},
       logAiUsage: (u, t) => console.log(`IA Usage: ${u} - ${t}`),
@@ -638,11 +625,23 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
            if (payload.typography) {
              payload.typography = { ...payload.typography, brandCode: d.brandCode };
            } else {
-             // If typography not in subset, we might need the existing one, 
-             // but usually Adn save sends the whole AdnForm which has typography
              payload.typography = { brandCode: d.brandCode };
            }
            delete payload.brandCode;
+        }
+        
+        if (d.driveFolderId !== undefined) {
+           if (payload.typography) {
+             payload.typography = { ...payload.typography, driveFolderId: d.driveFolderId };
+           } else {
+             // Retrieve existing typography to not overwrite it if we only update driveFolderId
+             // But usually it's fine since we spread. Wait, if payload.typography isn't there, we should merge.
+             // It's safer to let Supabase merge JSON or just fetch it. 
+             // Actually, we can fetch the existing project from context:
+             const existingProj = projects.find(p => String(p.id) === String(id));
+             payload.typography = { ...(existingProj?.typography || {}), driveFolderId: d.driveFolderId };
+           }
+           delete payload.driveFolderId;
         }
 
         if (d.monthlyFee !== undefined) { payload.monthly_fee = Number(d.monthlyFee); delete payload.monthlyFee; }
@@ -716,13 +715,22 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
           if (!existing) return;
           const created = new Date(existing.createdAt);
           let nextList;
+          let nextTracking = [...expenseTracking];
           if (created.getFullYear() === y && created.getMonth() === m) {
              nextList = expenses.map(e => e.id === id ? { ...e, ...data } : e);
           } else {
              const deletedAt = new Date(y, m, 1).toISOString();
              const softDeleted = { ...existing, deletedAt };
-             const newExp = { ...existing, ...data, id: `exp-${Date.now()}`, createdAt: new Date(y, m, 1).toISOString() };
+             const newId = `exp-${Date.now()}`;
+             const newExp = { ...existing, ...data, id: newId, createdAt: new Date(y, m, 1).toISOString() };
              nextList = [...expenses.filter(e => e.id !== id), softDeleted, newExp];
+             
+             const tIdx = nextTracking.findIndex(t => t.id === id && t.month === m && t.year === y);
+             if (tIdx > -1) {
+                nextTracking[tIdx] = { ...nextTracking[tIdx], id: newId };
+                await supabase.from('settings').upsert({ key: 'expense_tracking_json', value: JSON.stringify(nextTracking) });
+                setExpenseTracking(nextTracking);
+             }
           }
           const { error } = await supabase.from('settings').upsert({ key: 'expenses_json', value: JSON.stringify(nextList) });
           if (error) throw error;

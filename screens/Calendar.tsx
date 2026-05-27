@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useProjects } from '../context/ProjectContext';
 import { Task } from '../types';
+import { uploadFileResumable, createSubFolder } from '../lib/driveService';
 
 const Calendar: React.FC = () => {
   const location = useLocation();
@@ -15,6 +16,10 @@ const Calendar: React.FC = () => {
   const [isEditingDetail, setIsEditingDetail] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [confirmDeleteStep, setConfirmDeleteStep] = useState(false);
+  
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [selectFolderMode, setSelectFolderMode] = useState(false);
 
   const today = new Date();
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -119,6 +124,61 @@ const Calendar: React.FC = () => {
     });
     setSelectedTaskDetail(null);
     setShowModal(true);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, isEditMode: boolean) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const projectId = isEditMode ? editForm.projectId : taskForm.projectId;
+    if (!projectId) {
+      showToast("Selecciona primero la Marca Estratégica", "error");
+      return;
+    }
+
+    const project = projects.find(p => p.id === projectId);
+    const folderId = project?.driveFolderId || import.meta.env.VITE_GOOGLE_DRIVE_MASTER_FOLDER_ID;
+
+    setIsUploading(true);
+    setUploadProgress(0);
+    try {
+      let finalUrl = '';
+      if (!selectFolderMode && files.length === 1) {
+        finalUrl = await uploadFileResumable(files[0], folderId, (progress) => {
+          setUploadProgress(progress);
+        });
+      } else {
+        // Upload multiple files/folder
+        let targetFolderId = folderId;
+        
+        // If they selected a folder, create a subfolder with that name inside the brand folder
+        if (selectFolderMode && files[0].webkitRelativePath) {
+           const subFolderName = files[0].webkitRelativePath.split('/')[0] || (isEditMode ? editForm.title : taskForm.title) || 'Archivos de Tarea';
+           showToast(`Creando subcarpeta: ${subFolderName}...`, "success");
+           targetFolderId = await createSubFolder(subFolderName, folderId);
+        }
+
+        let uploaded = 0;
+        for (let i = 0; i < files.length; i++) {
+          await uploadFileResumable(files[i], targetFolderId);
+          uploaded++;
+          setUploadProgress(Math.round((uploaded / files.length) * 100));
+        }
+        finalUrl = `https://drive.google.com/drive/folders/${targetFolderId}`;
+      }
+      
+      if (isEditMode) {
+        setEditForm(prev => ({ ...prev, driveLink: finalUrl }));
+      } else {
+        setTaskForm(prev => ({ ...prev, driveLink: finalUrl }));
+      }
+      showToast(files.length > 1 ? "Archivos subidos exitosamente" : "Archivo subido exitosamente", "success");
+    } catch (err: any) {
+      showToast("Error al subir archivo: " + err.message, "error");
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(null);
+    }
   };
 
   const onDragStart = (e: React.DragEvent, taskId: string) => {
@@ -319,13 +379,46 @@ const Calendar: React.FC = () => {
                   <input type="date" required className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-white text-xs outline-none focus:border-primary" value={taskForm.date} onChange={e => setTaskForm({...taskForm, date: e.target.value})} />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[9px] font-black text-slate-500 uppercase px-1 tracking-widest">Punto de Acceso (URL)</label>
-                  <input className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-white text-xs outline-none focus:border-primary italic" value={taskForm.driveLink} onChange={e => setTaskForm({...taskForm, driveLink: e.target.value})} placeholder="https://..." />
+                  <div className="flex justify-between items-center px-1">
+                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Punto de Acceso / Bóveda</label>
+                    <div 
+                      onClick={() => setSelectFolderMode(!selectFolderMode)}
+                      className="flex items-center gap-1.5 cursor-pointer opacity-80 hover:opacity-100 transition-all"
+                    >
+                      <div className={`w-4 h-4 rounded-[4px] flex items-center justify-center transition-all ${selectFolderMode ? 'bg-primary border-primary shadow-[0_0_10px_rgba(109,40,217,0.5)]' : 'bg-black/40 border border-white/20'}`}>
+                        {selectFolderMode && <span className="material-symbols-outlined text-[12px] text-white font-bold">check</span>}
+                      </div>
+                      <span className={`text-[8px] font-black uppercase tracking-widest transition-colors ${selectFolderMode ? 'text-primary' : 'text-slate-400'}`}>Subir Carpeta Entera</span>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <input className="flex-1 bg-black/40 border border-white/10 rounded-2xl p-4 text-white text-xs outline-none focus:border-primary italic" value={taskForm.driveLink} onChange={e => setTaskForm({...taskForm, driveLink: e.target.value})} placeholder="URL o subir archivos ->" disabled={isUploading} />
+                    <label className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all cursor-pointer border ${isUploading ? 'bg-primary/20 border-primary/30' : 'bg-white/5 border-white/10 hover:bg-primary hover:text-white text-slate-400'}`} title={selectFolderMode ? "Subir Carpeta" : "Subir Archivo"}>
+                      <input 
+                        type="file" 
+                        className="hidden" 
+                        onChange={(e) => handleFileUpload(e, false)} 
+                        disabled={isUploading || !taskForm.projectId} 
+                        multiple={true}
+                        {...(selectFolderMode ? { webkitdirectory: "true", directory: "true" } as any : {})} 
+                      />
+                      {isUploading ? (
+                        <span className="text-[9px] font-black text-primary">{uploadProgress}%</span>
+                      ) : (
+                        <span className="material-symbols-outlined text-xl">{selectFolderMode ? 'create_new_folder' : 'cloud_upload'}</span>
+                      )}
+                    </label>
+                  </div>
+                  {isUploading && (
+                    <div className="w-full bg-white/5 h-1 rounded-full overflow-hidden mt-2">
+                      <div className="h-full bg-primary transition-all duration-300" style={{ width: `${uploadProgress}%` }}></div>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="flex gap-4 pt-4">
-                <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-5 bg-white/5 text-slate-500 font-black text-[10px] uppercase rounded-[2rem] hover:text-white transition-colors">Cancelar</button>
-                <button type="submit" disabled={isSubmitting} className="btn-premium flex-2 py-5 text-white font-black text-[11px] uppercase rounded-[2rem] shadow-2xl">{isSubmitting ? 'Procesando...' : 'Desplegar Tarea'}</button>
+                <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-5 bg-white/5 text-slate-500 font-black text-[10px] uppercase rounded-[2rem] hover:text-white transition-colors" disabled={isUploading}>Cancelar</button>
+                <button type="submit" disabled={isSubmitting || isUploading} className="btn-premium flex-2 py-5 text-white font-black text-[11px] uppercase rounded-[2rem] shadow-2xl">{(isSubmitting || isUploading) ? 'Procesando...' : 'Desplegar Tarea'}</button>
               </div>
             </form>
           </div>
@@ -392,11 +485,48 @@ const Calendar: React.FC = () => {
                 </div>
 
                 <div className="space-y-4">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1 flex items-center gap-2">
-                    <span className="material-symbols-outlined text-sm text-primary">cloud_done</span> Bóveda de Entrega
-                  </label>
+                  <div className="flex justify-between items-center px-1">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                      <span className="material-symbols-outlined text-sm text-primary">cloud_done</span> Bóveda de Entrega
+                    </label>
+                    {isEditingDetail && (
+                      <div 
+                        onClick={() => setSelectFolderMode(!selectFolderMode)}
+                        className="flex items-center gap-1.5 cursor-pointer opacity-80 hover:opacity-100 transition-all"
+                      >
+                        <div className={`w-4 h-4 rounded-[4px] flex items-center justify-center transition-all ${selectFolderMode ? 'bg-primary border-primary shadow-[0_0_10px_rgba(109,40,217,0.5)]' : 'bg-black/40 border border-white/20'}`}>
+                          {selectFolderMode && <span className="material-symbols-outlined text-[12px] text-white font-bold">check</span>}
+                        </div>
+                        <span className={`text-[8px] font-black uppercase tracking-widest transition-colors ${selectFolderMode ? 'text-primary' : 'text-slate-400'}`}>Subir Carpeta Entera</span>
+                      </div>
+                    )}
+                  </div>
                   {isEditingDetail ? (
-                    <input className="w-full bg-black/40 border border-white/10 rounded-2xl px-6 py-4 text-white text-sm outline-none italic" value={editForm.driveLink || ''} onChange={e => setEditForm({...editForm, driveLink: e.target.value})} />
+                    <div>
+                      <div className="flex gap-2">
+                        <input className="flex-1 bg-black/40 border border-white/10 rounded-2xl px-6 py-4 text-white text-sm outline-none italic" value={editForm.driveLink || ''} onChange={e => setEditForm({...editForm, driveLink: e.target.value})} disabled={isUploading} />
+                        <label className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all cursor-pointer border ${isUploading ? 'bg-primary/20 border-primary/30' : 'bg-white/5 border-white/10 hover:bg-primary hover:text-white text-slate-400'}`} title={selectFolderMode ? "Subir Carpeta" : "Subir Archivo"}>
+                          <input 
+                            type="file" 
+                            className="hidden" 
+                            onChange={(e) => handleFileUpload(e, true)} 
+                            disabled={isUploading} 
+                            multiple={true}
+                            {...(selectFolderMode ? { webkitdirectory: "true", directory: "true" } as any : {})} 
+                          />
+                          {isUploading ? (
+                            <span className="text-[10px] font-black text-primary">{uploadProgress}%</span>
+                          ) : (
+                            <span className="material-symbols-outlined text-2xl">{selectFolderMode ? 'create_new_folder' : 'cloud_upload'}</span>
+                          )}
+                        </label>
+                      </div>
+                      {isUploading && (
+                        <div className="w-full bg-white/5 h-1.5 rounded-full overflow-hidden mt-3">
+                          <div className="h-full bg-primary transition-all duration-300" style={{ width: `${uploadProgress}%` }}></div>
+                        </div>
+                      )}
+                    </div>
                   ) : selectedTaskDetail.driveLink ? (
                     <a href={selectedTaskDetail.driveLink} target="_blank" rel="noreferrer" className="flex items-center justify-between p-6 bg-primary/10 border border-primary/20 rounded-[2rem] group hover:bg-primary transition-all shadow-2xl">
                       <div className="flex items-center gap-4">
@@ -416,8 +546,8 @@ const Calendar: React.FC = () => {
              <div className="flex gap-4 mt-12 shrink-0">
                {isEditingDetail ? (
                  <>
-                   <button onClick={() => setIsEditingDetail(false)} className="flex-1 py-5 bg-white/5 text-slate-500 font-black text-[10px] uppercase rounded-[2rem] hover:text-white transition-colors">Cancelar Redacción</button>
-                   <button onClick={handleSaveEdit} disabled={isSubmitting} className="btn-premium flex-1 py-5 text-white font-black text-[11px] uppercase rounded-[2rem] shadow-2xl">{isSubmitting ? 'Sincronizando...' : 'Sincronizar Cambios'}</button>
+                   <button onClick={() => setIsEditingDetail(false)} className="flex-1 py-5 bg-white/5 text-slate-500 font-black text-[10px] uppercase rounded-[2rem] hover:text-white transition-colors" disabled={isUploading}>Cancelar Redacción</button>
+                   <button onClick={handleSaveEdit} disabled={isSubmitting || isUploading} className="btn-premium flex-1 py-5 text-white font-black text-[11px] uppercase rounded-[2rem] shadow-2xl">{(isSubmitting || isUploading) ? 'Sincronizando...' : 'Sincronizar Cambios'}</button>
                  </>
                ) : (
                  <>

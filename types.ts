@@ -137,6 +137,7 @@ export interface Project {
     body: TypographySetting;
     brandCode?: string;
   };
+  driveFolderId?: string;
 }
 
 export interface CampaignProductionDate {

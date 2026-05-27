@@ -57,6 +57,7 @@ const AdminDashboard: React.FC = () => {
   const [newExpense, setNewExpense] = useState({ name: '', amount: '', day: '', incomeId: '', isOneTime: false });
   const [newIncome, setNewIncome] = useState({ source: '', amount: '', day: '', description: '' });
   const [deletingReceiptId, setDeletingReceiptId] = useState<string | null>(null);
+  const [unlockedExpenses, setUnlockedExpenses] = useState<string[]>([]);
 
   const logoInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
@@ -322,7 +323,20 @@ const AdminDashboard: React.FC = () => {
     const pendingExpensesTotal = periodTracking.filter(e => !e.paid).reduce((acc, e) => acc + (Number(e.amount) || 0), 0);
 
     // Detailed Income tracking (Manual Association)
-    const currentTaxIncomeId = financeSettings.taxLinks?.[`${selectedPeriod.month}-${selectedPeriod.year}`];
+    let currentTaxIncomeId = undefined;
+    if (financeSettings.taxLinks) {
+       let y = selectedPeriod.year;
+       let m = selectedPeriod.month;
+       while (y >= 2024) {
+          const key = `${m}-${y}`;
+          if (financeSettings.taxLinks[key] !== undefined) {
+             currentTaxIncomeId = financeSettings.taxLinks[key];
+             break;
+          }
+          m--;
+          if (m < 0) { m = 11; y--; }
+       }
+    }
 
     // Combine paid receipts with planned payroll selections for this period
     const plannedPayroll = usersDB.map(u => ({
@@ -369,7 +383,7 @@ const AdminDashboard: React.FC = () => {
     return { 
         totalRevenue, totalPayroll, totalExpenses, estTaxes, netProfit, 
         realRevenue, realProfit, paidExpenses: paidExpensesTotal, pendingExpenses: pendingExpensesTotal,
-        detailedIncomes, periodTracking
+        detailedIncomes, periodTracking, currentTaxIncomeId
     };
   }, [projects, usersDB, baseSalaries, incomes, expenses, expenseTracking, financeSettings, selectedPeriod, receipts]);
 
@@ -382,12 +396,17 @@ const AdminDashboard: React.FC = () => {
       showToast("Selecciona el ingreso de donde se pagará esta nómina", "error");
       return;
     }
+    const monthNames = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"];
+    const targetMonthName = monthNames[selectedPeriod.month];
+    
+    if (!window.confirm(`Estás a punto de liquidar la nómina correspondiente a ${targetMonthName} ${selectedPeriod.year} para ${user.firstName}. ¿Deseas continuar?`)) {
+      return;
+    }
 
     setIsProcessingPayment(user.id);
     const bonuses = calculateUserBonuses(user.id);
     const ninjaBonusVal = bonuses.ninja ? 10 : 0;
     const masterBonusVal = bonuses.master ? 20 : 0;
-    const monthNames = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"];
     const memberPerf = performanceMetrics.byMember.find(m => String(m.id) === String(user.id));
     
     const completedTasks = memberPerf?.completed || 0;
@@ -713,7 +732,7 @@ const AdminDashboard: React.FC = () => {
                                 <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest px-1">Ligar a Ingreso</label>
                                 <select 
                                     className="w-full bg-black/40 border border-white/5 rounded-xl px-4 py-3 text-[10px] text-white font-bold outline-none focus:border-primary/40"
-                                    value={financeSettings.taxLinks?.[`${selectedPeriod.month}-${selectedPeriod.year}`] || ''}
+                                    value={financeMetrics.currentTaxIncomeId || ''}
                                     onChange={e => {
                                         const periodKey = `${selectedPeriod.month}-${selectedPeriod.year}`;
                                         const taxLinks = { ...(financeSettings.taxLinks || {}), [periodKey]: e.target.value };
@@ -790,24 +809,33 @@ const AdminDashboard: React.FC = () => {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-white/5 text-sm">
-                                    {financeMetrics.periodTracking.map(e => (
+                                    {financeMetrics.periodTracking.map(e => {
+                                        const now = new Date();
+                                        const currentActualMonth = now.getDate() >= 20 ? (now.getMonth() + 1) % 12 : now.getMonth();
+                                        const currentActualYear = (now.getDate() >= 20 && now.getMonth() === 11) ? now.getFullYear() + 1 : now.getFullYear();
+                                        const isPastPeriod = selectedPeriod.year < currentActualYear || (selectedPeriod.year === currentActualYear && selectedPeriod.month < currentActualMonth);
+                                        const isLocked = (isPastPeriod || e.deletedAt) && !unlockedExpenses.includes(e.id);
+                                        
+                                        return (
                                         <tr key={e.id} className="hover:bg-white/[0.02] group transition-colors">
                                             <td className="px-6 py-5">
-                                                <span className="text-white font-bold uppercase tracking-tight truncate block">{e.name}</span>
+                                                <span className={`font-bold uppercase tracking-tight truncate block ${isLocked ? 'text-white/50' : 'text-white'}`}>{e.name}</span>
                                             </td>
                                             <td className="px-6 py-5 text-center px-1">
                                                 <input 
                                                   type="number" min="1" max="31" 
-                                                  className="w-12 bg-black/40 border border-white/5 rounded-lg px-1 py-1 text-xs text-white font-black text-center outline-none focus:border-primary/40"
+                                                  disabled={isLocked}
+                                                  className={`w-12 bg-black/40 border border-white/5 rounded-lg px-1 py-1 text-xs font-black text-center outline-none ${isLocked ? 'text-white/30 cursor-not-allowed' : 'text-white focus:border-primary/40'}`}
                                                   value={e.date ? e.date.replace(/[^0-9]/g, '') : ''}
                                                   onChange={val => updateExpense(e.id, { date: val.target.value ? `Día ${val.target.value}` : '' }, selectedPeriod.month, selectedPeriod.year)}
                                                 />
                                             </td>
                                             <td className="px-6 py-5">
                                                 <select 
-                                                  className="w-full bg-black/40 border border-white/5 rounded-lg px-2 py-1.5 text-xs text-white font-bold outline-none focus:border-primary/40"
+                                                  disabled={isLocked}
+                                                  className={`w-full bg-black/40 border border-white/5 rounded-lg px-2 py-1.5 text-xs font-bold outline-none ${isLocked ? 'text-white/30 cursor-not-allowed' : 'text-white focus:border-primary/40'}`}
                                                   value={e.incomeId || ''}
-                                                  onChange={val => toggleExpensePayment(e.id, selectedPeriod.month, selectedPeriod.year, val.target.value)}
+                                                  onChange={val => updateExpense(e.id, { incomeId: val.target.value }, selectedPeriod.month, selectedPeriod.year)}
                                                 >
                                                     <option value="" className="bg-slate-900">Seleccionar...</option>
                                                     {incomes.map(inc => (
@@ -815,22 +843,40 @@ const AdminDashboard: React.FC = () => {
                                                     ))}
                                                 </select>
                                             </td>
-                                            <td className="px-6 py-5 text-right text-rose-400 font-black italic">-${Number(e.amount).toFixed(0)}</td>
+                                            <td className={`px-6 py-5 text-right font-black italic ${isLocked ? 'text-rose-400/50' : 'text-rose-400'}`}>-${Number(e.amount).toFixed(0)}</td>
                                             <td className="px-6 py-5 text-center">
                                               <button 
                                                 onClick={() => toggleExpensePayment(e.id, selectedPeriod.month, selectedPeriod.year)}
                                                 className={`px-3 py-1 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${
                                                   e.paid 
-                                                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
-                                                    : 'bg-white/5 text-slate-500 border border-white/10 hover:border-primary/40 hover:text-white'
+                                                    ? `bg-emerald-500/20 border border-emerald-500/30 ${isLocked ? 'text-emerald-400/50' : 'text-emerald-400'}` 
+                                                    : `bg-white/5 border border-white/10 ${isLocked ? 'text-slate-500/50' : 'text-slate-500 hover:border-primary/40 hover:text-white'}`
                                                 }`}
                                               >
                                                 {e.paid ? 'PAGADO' : 'PENDIENTE'}
                                               </button>
                                             </td>
-                                            <td className="px-6 py-5 text-right"><button onClick={() => deleteExpense(e.id, selectedPeriod.month, selectedPeriod.year)} className="text-rose-500/10 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all hover:scale-110"><span className="material-symbols-outlined text-xl">close</span></button></td>
+                                            <td className="px-6 py-5 text-right">
+                                              {isLocked ? (
+                                                <button onClick={() => setUnlockedExpenses([...unlockedExpenses, e.id])} className="text-slate-500 hover:text-white transition-all hover:scale-110" title="Desbloquear para editar">
+                                                  <span className="material-symbols-outlined text-xl">lock</span>
+                                                </button>
+                                              ) : (
+                                                <div className="flex justify-end gap-2">
+                                                  {unlockedExpenses.includes(e.id) && (
+                                                    <button onClick={() => setUnlockedExpenses(unlockedExpenses.filter(id => id !== e.id))} className="text-primary hover:text-white transition-all hover:scale-110" title="Bloquear de nuevo">
+                                                      <span className="material-symbols-outlined text-xl">lock_open</span>
+                                                    </button>
+                                                  )}
+                                                  <button onClick={() => deleteExpense(e.id, selectedPeriod.month, selectedPeriod.year)} className="text-rose-500/10 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all hover:scale-110" title="Eliminar">
+                                                    <span className="material-symbols-outlined text-xl">close</span>
+                                                  </button>
+                                                </div>
+                                              )}
+                                            </td>
                                         </tr>
-                                    ))}
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>

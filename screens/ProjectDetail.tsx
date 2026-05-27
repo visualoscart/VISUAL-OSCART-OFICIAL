@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useProjects } from '../context/ProjectContext';
 import { Collaborator } from '../types';
+import { createBrandFolder } from '../lib/driveService';
 
 const ProjectDetail: React.FC = () => {
   const { id } = useParams();
@@ -17,6 +18,7 @@ const ProjectDetail: React.FC = () => {
   const [showTextModal, setShowTextModal] = useState(false);
   const [showMediaLinkModal, setShowMediaLinkModal] = useState(false);
   const [isEditingAdn, setIsEditingAdn] = useState(false);
+  const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   
   const [editAdnForm, setEditAdnForm] = useState({ 
     brief: '', 
@@ -127,6 +129,20 @@ const ProjectDetail: React.FC = () => {
       setNewMediaLink({ name: '', url: '', type: 'Imagen', platform: 'Drive' });
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleCreateDriveFolder = async () => {
+    if (!project) return;
+    setIsCreatingFolder(true);
+    try {
+      const folderId = await createBrandFolder(project.name);
+      await updateProject(project.id, { driveFolderId: folderId });
+      showToast("Carpeta de Drive creada exitosamente", "success");
+    } catch (e: any) {
+      showToast("Error al crear carpeta: " + e.message, "error");
+    } finally {
+      setIsCreatingFolder(false);
     }
   };
 
@@ -257,9 +273,32 @@ const ProjectDetail: React.FC = () => {
                           {project.brief || 'Arquitectura de marca en proceso de definición estratégica.'}
                         </p>
                       )}
-                      <div className="mt-12 flex items-center gap-3 opacity-20">
-                         <div className="w-8 h-px bg-white"></div>
-                         <span className="text-[9px] font-black text-white uppercase tracking-[0.3em]">Bóveda de Inteligencia Visual</span>
+                      <div className="mt-12 flex items-center justify-between">
+                         <div className="flex items-center gap-3 opacity-20">
+                            <div className="w-8 h-px bg-white"></div>
+                            <span className="text-[9px] font-black text-white uppercase tracking-[0.3em]">Bóveda de Inteligencia Visual</span>
+                         </div>
+                         <div className="flex items-center gap-3 relative z-20">
+                            {project.driveFolderId ? (
+                              <a 
+                                href={`https://drive.google.com/drive/folders/${project.driveFolderId}`} 
+                                target="_blank" 
+                                rel="noreferrer" 
+                                className="flex items-center gap-2 text-[10px] font-black text-primary uppercase bg-primary/10 px-4 py-2 rounded-xl hover:bg-primary hover:text-white transition-all shadow-lg"
+                              >
+                                <span className="material-symbols-outlined text-sm">folder_open</span> Abrir Carpeta Drive
+                              </a>
+                            ) : (
+                              <button 
+                                onClick={handleCreateDriveFolder}
+                                disabled={isCreatingFolder}
+                                className="flex items-center gap-2 text-[10px] font-black text-white uppercase bg-white/5 border border-white/10 px-4 py-2 rounded-xl hover:bg-primary/20 hover:border-primary/50 transition-all shadow-lg z-20"
+                              >
+                                <span className="material-symbols-outlined text-sm">create_new_folder</span>
+                                {isCreatingFolder ? 'Creando...' : 'Crear Carpeta Drive'}
+                              </button>
+                            )}
+                         </div>
                       </div>
                    </div>
                 </div>
