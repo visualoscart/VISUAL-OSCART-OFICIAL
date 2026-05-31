@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useProjects } from '../context/ProjectContext';
 import { Collaborator } from '../types';
-import { createBrandFolder } from '../lib/driveService';
+import { createBrandFolder, uploadFileResumable, createSubFolder } from '../lib/driveService';
 
 const ProjectDetail: React.FC = () => {
   const { id } = useParams();
@@ -28,18 +28,25 @@ const ProjectDetail: React.FC = () => {
     brandColors: [] as string[], 
     brandManualUrl: '',
     typography: {
-      titles: { name: '', url: '' },
-      subtitles: { name: '', url: '' },
-      body: { name: '', url: '' }
+      titles: { name: '', url: '' as string | undefined },
+      subtitles: { name: '', url: '' as string | undefined },
+      body: { name: '', url: '' as string | undefined }
     }
   });
   const [newText, setNewText] = useState({ title: '', content: '', tag: 'Hooks' as any });
   const [newMediaLink, setNewMediaLink] = useState({ name: '', url: '', type: 'Imagen' as any, platform: 'Drive' as any });
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
+  const [mediaTab, setMediaTab] = useState<'link' | 'upload'>('upload');
+  const [adnUploadProgress, setAdnUploadProgress] = useState<Record<string, number>>({});
+  const [isUploadingAdn, setIsUploadingAdn] = useState<Record<string, boolean>>({});
   
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (project) {
+      const projTypo = project.typography;
       setEditAdnForm({
         brief: project.brief || '',
         hell: project.hell || '',
@@ -47,10 +54,10 @@ const ProjectDetail: React.FC = () => {
         brandCode: project.brandCode || '',
         brandColors: project.brandColors || ['#8c2bee', '#f97316'],
         brandManualUrl: project.brandManualUrl || '',
-        typography: project.typography || {
-          titles: { name: '', url: '' },
-          subtitles: { name: '', url: '' },
-          body: { name: '', url: '' }
+        typography: {
+          titles: { name: projTypo?.titles?.name || '', url: projTypo?.titles?.url },
+          subtitles: { name: projTypo?.subtitles?.name || '', url: projTypo?.subtitles?.url },
+          body: { name: projTypo?.body?.name || '', url: projTypo?.body?.url }
         }
       });
     }
@@ -132,6 +139,82 @@ const ProjectDetail: React.FC = () => {
     }
   };
 
+  const handleUploadBrandManual = async (file: File) => {
+    if (!project || !file) return;
+    setIsUploadingAdn(prev => ({ ...prev, manual: true }));
+    setAdnUploadProgress(prev => ({ ...prev, manual: 0 }));
+    try {
+      const resourcesFolderId = await createBrandFolder(`${project.name} - Recursos`);
+      const manualFolderId = await createSubFolder("Manual de Marca", resourcesFolderId);
+      const { url } = await uploadFileResumable(file, manualFolderId, (prog) => {
+         setAdnUploadProgress(prev => ({ ...prev, manual: prog }));
+      });
+      setEditAdnForm(prev => ({ ...prev, brandManualUrl: url }));
+      showToast("Manual subido exitosamente", "success");
+    } catch (e: any) {
+      showToast("Error al subir manual: " + e.message, "error");
+    } finally {
+      setIsUploadingAdn(prev => ({ ...prev, manual: false }));
+    }
+  };
+
+  const handleUploadFont = async (file: File, key: 'titles' | 'subtitles' | 'body') => {
+    if (!project || !file) return;
+    setIsUploadingAdn(prev => ({ ...prev, [key]: true }));
+    setAdnUploadProgress(prev => ({ ...prev, [key]: 0 }));
+    try {
+      const resourcesFolderId = await createBrandFolder(`${project.name} - Recursos`);
+      const fontsFolderId = await createSubFolder("Fuentes", resourcesFolderId);
+      const { url } = await uploadFileResumable(file, fontsFolderId, (prog) => {
+         setAdnUploadProgress(prev => ({ ...prev, [key]: prog }));
+      });
+      setEditAdnForm(prev => ({
+        ...prev,
+        typography: {
+          ...prev.typography,
+          [key]: { ...prev.typography[key], url }
+        }
+      }));
+      showToast("Fuente subida exitosamente", "success");
+    } catch (e: any) {
+      showToast("Error al subir fuente: " + e.message, "error");
+    } finally {
+      setIsUploadingAdn(prev => ({ ...prev, [key]: false }));
+    }
+  };
+
+  const handleUploadMediaFile = async () => {
+    if (!project || !uploadFile) return;
+    setIsUploading(true);
+    setUploadProgress(0);
+    try {
+      const folderId = await createBrandFolder(`${project.name} - Recursos`);
+      const { url, fileId, thumbnailUrl } = await uploadFileResumable(uploadFile, folderId, setUploadProgress);
+      let type: 'Imagen' | 'Video' | 'Archivo' = 'Archivo';
+      if (uploadFile.type.startsWith('image/')) type = 'Imagen';
+      else if (uploadFile.type.startsWith('video/')) type = 'Video';
+      const previewUrl = thumbnailUrl || (type === 'Imagen' ? `https://drive.google.com/uc?export=view&id=${fileId}` : undefined);
+      await addMediaAsset(project.id, {
+        name: newMediaLink.name || uploadFile.name.split('.')[0],
+        url,
+        type,
+        platform: 'Drive',
+        size: `${(uploadFile.size / 1024 / 1024).toFixed(2)} MB`,
+        fileId,
+        previewUrl
+      });
+      setShowMediaLinkModal(false);
+      setUploadFile(null);
+      setNewMediaLink({ name: '', url: '', type: 'Imagen', platform: 'Drive' });
+      showToast("Activo subido exitosamente", "success");
+    } catch (e: any) {
+      showToast("Error al subir: " + e.message, "error");
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+    }
+  };
+
   const handleCreateDriveFolder = async () => {
     if (!project) return;
     setIsCreatingFolder(true);
@@ -175,11 +258,11 @@ const ProjectDetail: React.FC = () => {
                 />
               </div>
               <div>
-                <h2 className="text-3xl font-black italic uppercase tracking-tighter">{project.name} <span className="text-primary">.</span></h2>
+                <h2 className="text-3xl font-black uppercase tracking-tighter">{project.name} <span className="text-primary">.</span></h2>
                 <div className="flex items-center gap-3 mt-1">
-                   <span className="text-accent-orange text-[9px] font-black uppercase tracking-[0.3em] opacity-80">{project.niche}</span>
+                   <span className="text-accent-orange text-[9px] font-medium uppercase tracking-[0.3em] opacity-80">{project.niche}</span>
                    <span className="w-1 h-1 bg-white/20 rounded-full"></span>
-                   <span className="text-slate-500 text-[9px] font-black uppercase tracking-widest opacity-60">{project.client}</span>
+                   <span className="text-slate-500 text-[9px] font-medium uppercase tracking-widest opacity-60">{project.client}</span>
                 </div>
               </div>
             </div>
@@ -195,7 +278,7 @@ const ProjectDetail: React.FC = () => {
               {(Array.isArray(project.collaborators) ? project.collaborators : []).map((c, i) => (
                 <img key={i} src={c.avatar} className="w-10 h-10 rounded-2xl border-4 border-background-dark object-cover shadow-2xl hover:translate-y-[-4px] transition-transform" title={c.name} />
               ))}
-              {(!project.collaborators || project.collaborators.length === 0) && <span className="text-[9px] text-slate-700 font-bold uppercase italic tracking-widest">Sin asignar</span>}
+              {(!project.collaborators || project.collaborators.length === 0) && <span className="text-[9px] text-slate-700 font-medium uppercase tracking-widest">Sin asignar</span>}
             </div>
           </div>
         </div>
@@ -234,12 +317,13 @@ const ProjectDetail: React.FC = () => {
             <div className="space-y-12 animate-in fade-in duration-500">
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
                 {/* CONCEPTO MAESTRO: Refinado a fuente normal y más pequeña */}
-                <div className="lg:col-span-8 glass-panel p-12 rounded-[3.5rem] border border-white/5 relative overflow-hidden group">
-                   <div className="absolute top-0 left-0 w-1 h-full bg-primary/30"></div>
+                <div className="lg:col-span-8 glass-panel p-12 rounded-[3.5rem] border border-white/5 relative overflow-hidden group hover:border-primary/20 hover:shadow-2xl hover:shadow-primary/10 transition-all duration-500 hover:-translate-y-1">
+                   <div className="absolute top-0 left-0 w-1 h-full bg-primary/30 group-hover:bg-primary group-hover:w-2 transition-all duration-500"></div>
+                   <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
                    <div className="relative z-10">
                       <div className="flex items-center gap-4 mb-8 opacity-40">
                          <span className="material-symbols-outlined text-primary text-xl">auto_awesome</span>
-                         <h3 className="text-[10px] font-black uppercase text-slate-500 tracking-[0.4em] italic">Concepto Maestro <span className="text-primary">/ Protocolo 01</span></h3>
+                         <h3 className="text-[10px] font-black uppercase text-slate-500 tracking-[0.4em] ">Concepto Maestro <span className="text-primary">/ Protocolo 01</span></h3>
                          
                          {/* Brand Code Display/Edit */}
                          {!isEditingAdn && project.brandCode && (
@@ -251,7 +335,7 @@ const ProjectDetail: React.FC = () => {
                       
                       {isEditingAdn && (
                         <div className="mb-8 space-y-2">
-                           <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1 opacity-60 italic">Identificador Único (Código de Marca)</label>
+                           <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1 opacity-60 ">Identificador Único (Código de Marca)</label>
                            <input 
                               type="text" 
                               className="w-full bg-[#08070b] border border-primary/10 rounded-2xl px-6 py-4 text-white text-xs font-black uppercase outline-none focus:border-primary/30 tracking-[0.2em]" 
@@ -263,13 +347,13 @@ const ProjectDetail: React.FC = () => {
                       )}
                       {isEditingAdn ? (
                         <textarea 
-                          className="w-full bg-[#08070b] border border-primary/10 rounded-[2rem] p-8 text-slate-300 text-base font-normal italic outline-none focus:border-primary/30 resize-none h-60 transition-all leading-relaxed whitespace-pre-wrap" 
+                          className="w-full bg-[#08070b] border border-primary/10 rounded-[2rem] p-8 text-slate-300 text-base font-normal outline-none focus:border-primary/30 resize-none h-60 transition-all leading-relaxed whitespace-pre-wrap" 
                           value={editAdnForm.brief} 
                           onChange={e => setEditAdnForm({...editAdnForm, brief: e.target.value})} 
                           placeholder="Describe el alma estratégica de la marca..." 
                         />
                       ) : (
-                        <p className="text-slate-400 italic text-xl lg:text-2xl leading-relaxed font-normal tracking-normal whitespace-pre-wrap">
+                        <p className="text-slate-400 text-xl lg:text-2xl leading-relaxed font-normal tracking-normal whitespace-pre-wrap">
                           {project.brief || 'Arquitectura de marca en proceso de definición estratégica.'}
                         </p>
                       )}
@@ -304,29 +388,31 @@ const ProjectDetail: React.FC = () => {
                 </div>
 
                 <div className="lg:col-span-4 flex flex-col gap-8">
-                   <div className="glass-panel p-8 rounded-[3rem] border border-rose-500/10 flex-1 relative group overflow-hidden bg-rose-950/5">
-                      <div className="flex items-center gap-3 mb-6 opacity-40">
+                   <div className="glass-panel p-8 rounded-[3rem] border border-rose-500/10 flex-1 relative group overflow-hidden bg-rose-950/5 hover:border-rose-500/30 hover:shadow-2xl hover:shadow-rose-500/10 transition-all duration-500 hover:-translate-y-1">
+                      <div className="absolute inset-0 bg-gradient-to-br from-rose-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+                      <div className="flex items-center gap-3 mb-6 opacity-40 group-hover:opacity-100 transition-opacity duration-500 relative z-10">
                          <span className="material-symbols-outlined text-rose-500 text-lg">dangerous</span>
-                         <h3 className="text-[10px] font-black uppercase text-rose-500 tracking-[0.2em] italic">Diferencial de Dolor</h3>
+                         <h3 className="text-[10px] font-black uppercase text-rose-500 tracking-[0.2em] ">Diferencial de Dolor</h3>
                       </div>
                       {isEditingAdn ? (
                         <textarea className="w-full bg-black/40 border border-white/5 rounded-2xl p-5 text-white text-xs outline-none focus:border-rose-500/50 resize-none h-32 whitespace-pre-wrap" value={editAdnForm.hell} onChange={e => setEditAdnForm({...editAdnForm, hell: e.target.value})} placeholder="Puntos críticos..." />
                       ) : (
-                        <p className="text-slate-400 text-xs italic font-medium opacity-70 leading-relaxed whitespace-pre-wrap">
+                        <p className="text-slate-400 text-xs font-medium opacity-70 leading-relaxed whitespace-pre-wrap">
                           "{project.hell || 'Aún no se han mapeado los puntos de dolor del nicho.'}"
                         </p>
                       )}
                    </div>
                    
-                   <div className="glass-panel p-8 rounded-[3rem] border border-emerald-500/10 flex-1 relative group overflow-hidden bg-emerald-950/5">
-                      <div className="flex items-center gap-3 mb-6 opacity-40">
+                   <div className="glass-panel p-8 rounded-[3rem] border border-emerald-500/10 flex-1 relative group overflow-hidden bg-emerald-950/5 hover:border-emerald-500/30 hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-500 hover:-translate-y-1">
+                      <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+                      <div className="flex items-center gap-3 mb-6 opacity-40 group-hover:opacity-100 transition-opacity duration-500 relative z-10">
                          <span className="material-symbols-outlined text-emerald-500 text-lg">auto_graph</span>
-                         <h3 className="text-[10px] font-black uppercase text-emerald-500 tracking-[0.2em] italic">Aspiración Máxima</h3>
+                         <h3 className="text-[10px] font-black uppercase text-emerald-500 tracking-[0.2em] ">Aspiración Máxima</h3>
                       </div>
                       {isEditingAdn ? (
                         <textarea className="w-full bg-black/40 border border-white/5 rounded-2xl p-5 text-white text-xs outline-none focus:border-emerald-500/50 resize-none h-32 whitespace-pre-wrap" value={editAdnForm.heaven} onChange={e => setEditAdnForm({...editAdnForm, heaven: e.target.value})} placeholder="Promesa de marca..." />
                       ) : (
-                        <p className="text-slate-400 text-xs italic font-medium opacity-70 leading-relaxed whitespace-pre-wrap">
+                        <p className="text-slate-400 text-xs font-medium opacity-70 leading-relaxed whitespace-pre-wrap">
                           "{project.heaven || 'Definición de cielo aspiracional pendiente.'}"
                         </p>
                       )}
@@ -335,9 +421,9 @@ const ProjectDetail: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-                <div className="lg:col-span-8 glass-panel p-10 rounded-[3rem] border border-white/5 space-y-10">
+                <div className="lg:col-span-8 glass-panel p-10 rounded-[3rem] border border-white/5 space-y-10 hover:border-primary/20 hover:shadow-xl transition-all duration-500">
                   <div className="flex justify-between items-center">
-                    <h3 className="text-[10px] font-black uppercase text-primary tracking-[0.2em] italic">Identidad de Color</h3>
+                    <h3 className="text-[10px] font-black uppercase text-primary tracking-[0.2em] ">Identidad de Color</h3>
                     {isEditingAdn && (
                       <button onClick={handleAddColor} className="text-[9px] bg-primary/10 text-primary px-4 py-1.5 rounded-xl border border-primary/20 font-black uppercase hover:bg-primary hover:text-white transition-all">Añadir Tono</button>
                     )}
@@ -355,25 +441,49 @@ const ProjectDetail: React.FC = () => {
                             </button>
                           </div>
                         ) : (
-                          <>
-                            <div className="w-14 h-14 rounded-2xl shadow-xl border border-white/10 group-hover:scale-105 transition-transform" style={{ backgroundColor: color }}></div>
-                            <span className="text-[9px] font-mono font-black text-slate-600 uppercase tracking-widest">{color}</span>
-                          </>
+                          <div 
+                            className="flex flex-col items-center gap-4 cursor-pointer group/color" 
+                            onClick={() => { copyToClipboard(color); showToast(`Color ${color} copiado`, "success"); }}
+                            title="Haz clic para copiar el código HEX"
+                          >
+                            <div className="w-14 h-14 rounded-2xl shadow-xl border border-white/10 group-hover/color:scale-110 transition-transform relative flex items-center justify-center overflow-hidden" style={{ backgroundColor: color }}>
+                               <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/color:opacity-100 transition-opacity" />
+                               <span className="material-symbols-outlined text-white text-lg opacity-0 group-hover/color:opacity-100 transition-opacity relative z-10 drop-shadow-lg">content_copy</span>
+                            </div>
+                            <span className="text-[9px] font-mono font-black text-slate-600 uppercase tracking-widest group-hover/color:text-primary transition-colors">{color}</span>
+                          </div>
                         )}
                       </div>
                     ))}
                   </div>
                 </div>
-                <div className="lg:col-span-4 glass-panel p-10 rounded-[3rem] border border-white/5 flex flex-col justify-center items-center text-center space-y-8">
+                <div className="lg:col-span-4 glass-panel p-10 rounded-[3rem] border border-white/5 flex flex-col justify-center items-center text-center space-y-8 hover:border-primary/20 hover:shadow-xl transition-all duration-500">
                    <div className="w-16 h-16 bg-primary/10 rounded-[2rem] flex items-center justify-center text-primary border border-primary/20 shadow-2xl">
                      <span className="material-symbols-outlined text-2xl">menu_book</span>
                    </div>
                    <div>
-                     <h3 className="text-xs font-black text-white uppercase tracking-tighter italic">Manual Corporativo</h3>
+                     <h3 className="text-xs font-black text-white uppercase tracking-tighter ">Manual Corporativo</h3>
                      <p className="text-[8px] text-slate-500 font-bold uppercase mt-1 opacity-60">Guía de Activos Visuales</p>
                    </div>
                    {isEditingAdn ? (
-                     <input type="text" className="w-full bg-black/40 border border-white/5 rounded-2xl p-4 text-white text-[10px] outline-none italic" value={editAdnForm.brandManualUrl} onChange={e => setEditAdnForm({...editAdnForm, brandManualUrl: e.target.value})} placeholder="URL de Documentación..." />
+                     <div className="w-full space-y-2">
+                        <div className="flex gap-2">
+                           <input type="text" className="flex-1 bg-black/40 border border-white/5 rounded-2xl p-4 text-white text-[10px] outline-none " value={editAdnForm.brandManualUrl} onChange={e => setEditAdnForm({...editAdnForm, brandManualUrl: e.target.value})} placeholder="URL de Documentación..." disabled={isUploadingAdn['manual']} />
+                           <label className={`w-12 shrink-0 rounded-2xl flex items-center justify-center transition-all cursor-pointer border ${isUploadingAdn['manual'] ? 'bg-primary/20 border-primary/30' : 'bg-white/5 border-white/10 hover:bg-primary hover:text-white text-slate-400'}`}>
+                             <input type="file" className="hidden" onChange={(e) => { if(e.target.files?.[0]) handleUploadBrandManual(e.target.files[0]); }} disabled={isUploadingAdn['manual']} accept=".pdf,.doc,.docx" />
+                             {isUploadingAdn['manual'] ? (
+                               <span className="text-[9px] font-black text-primary">{adnUploadProgress['manual'] || 0}%</span>
+                             ) : (
+                               <span className="material-symbols-outlined text-lg">cloud_upload</span>
+                             )}
+                           </label>
+                        </div>
+                        {isUploadingAdn['manual'] && (
+                          <div className="w-full bg-white/5 h-1 rounded-full overflow-hidden">
+                            <div className="h-full bg-primary transition-all duration-300" style={{ width: `${adnUploadProgress['manual']}%` }}></div>
+                          </div>
+                        )}
+                     </div>
                    ) : (
                      project.brandManualUrl && (
                        <a href={project.brandManualUrl} target="_blank" rel="noreferrer" className="w-full py-4 bg-primary text-white font-black text-[10px] uppercase rounded-2xl shadow-2xl flex items-center justify-center gap-3 hover:scale-105 active:scale-95 transition-all">
@@ -384,9 +494,9 @@ const ProjectDetail: React.FC = () => {
                 </div>
               </div>
 
-              <div className="glass-panel p-10 rounded-[3rem] border border-white/5 space-y-10 animate-in fade-in duration-700">
+              <div className="glass-panel p-10 rounded-[3rem] border border-white/5 space-y-10 animate-in fade-in duration-700 hover:border-primary/20 hover:shadow-xl transition-all duration-500">
                 <div className="flex justify-between items-center">
-                  <h3 className="text-[10px] font-black uppercase text-primary tracking-[0.2em] italic">Identidad Tipográfica</h3>
+                  <h3 className="text-[10px] font-black uppercase text-primary tracking-[0.2em] ">Identidad Tipográfica</h3>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
                   {[
@@ -421,25 +531,43 @@ const ProjectDetail: React.FC = () => {
                               });
                             }} 
                           />
-                          <input 
-                            type="text" 
-                            className="w-full bg-black/40 border border-white/5 rounded-xl p-3 text-white text-[10px] outline-none italic" 
-                            placeholder="URL de descarga..." 
-                            value={editAdnForm.typography[type.key].url} 
-                            onChange={e => {
-                              setEditAdnForm({ 
-                                ...editAdnForm, 
-                                typography: {
-                                  ...editAdnForm.typography,
-                                  [type.key]: { ...editAdnForm.typography[type.key], url: e.target.value }
-                                }
-                              });
-                            }} 
-                          />
+                          <div className="flex flex-col gap-2">
+                             <div className="flex gap-2">
+                               <input 
+                                 type="text" 
+                                 className="flex-1 bg-black/40 border border-white/5 rounded-xl p-3 text-white text-[10px] outline-none " 
+                                 placeholder="URL de descarga..." 
+                                 value={editAdnForm.typography[type.key].url} 
+                                 onChange={e => {
+                                   setEditAdnForm({ 
+                                     ...editAdnForm, 
+                                     typography: {
+                                       ...editAdnForm.typography,
+                                       [type.key]: { ...editAdnForm.typography[type.key], url: e.target.value }
+                                     }
+                                   });
+                                 }} 
+                                 disabled={isUploadingAdn[type.key]}
+                               />
+                               <label className={`w-10 shrink-0 rounded-xl flex items-center justify-center transition-all cursor-pointer border ${isUploadingAdn[type.key] ? 'bg-primary/20 border-primary/30' : 'bg-white/5 border-white/10 hover:bg-primary hover:text-white text-slate-400'}`}>
+                                 <input type="file" className="hidden" onChange={(e) => { if(e.target.files?.[0]) handleUploadFont(e.target.files[0], type.key); }} disabled={isUploadingAdn[type.key]} accept=".ttf,.otf,.woff,.woff2,.zip" />
+                                 {isUploadingAdn[type.key] ? (
+                                   <span className="text-[8px] font-black text-primary">{adnUploadProgress[type.key] || 0}%</span>
+                                 ) : (
+                                   <span className="material-symbols-outlined text-[16px]">cloud_upload</span>
+                                 )}
+                               </label>
+                             </div>
+                             {isUploadingAdn[type.key] && (
+                               <div className="w-full bg-white/5 h-1 rounded-full overflow-hidden">
+                                 <div className="h-full bg-primary transition-all duration-300" style={{ width: `${adnUploadProgress[type.key]}%` }}></div>
+                               </div>
+                             )}
+                          </div>
                         </div>
                       ) : (
                         <div className="space-y-4">
-                          <p className="text-xl font-black italic tracking-tighter uppercase truncate text-slate-300">
+                          <p className="text-xl font-black tracking-tighter uppercase truncate text-slate-300">
                             {project.typography?.[type.key].name || 'Pendiente'}
                           </p>
                           {project.typography?.[type.key].url && (
@@ -479,8 +607,8 @@ const ProjectDetail: React.FC = () => {
                             <button onClick={() => deleteTextAsset(project.id, item.id)} className="w-9 h-9 bg-white/10 rounded-xl text-white/50 hover:text-rose-500 transition-colors border border-white/5 flex items-center justify-center" title="Borrar"><span className="material-symbols-outlined text-lg">delete</span></button>
                         </div>
                         <span className="px-4 py-1.5 bg-primary/10 text-primary text-[9px] font-black uppercase rounded-xl border border-primary/20 tracking-widest">{item.tag}</span>
-                        <h4 className="text-white font-black text-xl mt-6 mb-4 italic uppercase tracking-tighter">{item.title}</h4>
-                        <p className="text-slate-400 text-sm italic line-clamp-4 leading-relaxed opacity-70 whitespace-pre-wrap">"{item.content}"</p>
+                        <h4 className="text-white font-black text-xl mt-6 mb-4 uppercase tracking-tighter">{item.title}</h4>
+                        <p className="text-slate-400 text-sm font-normal line-clamp-4 leading-relaxed opacity-70 whitespace-pre-wrap group-hover:text-slate-300 transition-colors">"{item.content}"</p>
                       </div>
                     ))}
                  </div>
@@ -537,7 +665,7 @@ const ProjectDetail: React.FC = () => {
       {showTeamModal && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-background-dark/95 backdrop-blur-2xl animate-in fade-in" onClick={() => setShowTeamModal(false)}>
           <div className="glass-panel border border-white/10 rounded-[3rem] w-full max-w-lg p-12 overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
-            <h3 className="text-2xl font-black text-white mb-10 uppercase tracking-tighter italic">Flujo de <span className="text-primary">Colaboración</span></h3>
+            <h3 className="text-2xl font-black text-white mb-10 uppercase tracking-tighter ">Flujo de <span className="text-primary">Colaboración</span></h3>
             <div className="space-y-4 max-h-[400px] overflow-y-auto pr-4 scrollbar-hide">
               {usersDB.map(u => {
                 const isAssigned = (Array.isArray(project.collaborators) ? project.collaborators : []).some(c => String(c.id) === String(u.id));
@@ -565,7 +693,7 @@ const ProjectDetail: React.FC = () => {
       {showTextModal && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-background-dark/95 backdrop-blur-2xl animate-in fade-in" onClick={() => setShowTextModal(false)}>
            <div className="glass-panel border border-white/10 rounded-[3rem] w-full max-w-lg p-12 space-y-8 shadow-2xl" onClick={e => e.stopPropagation()}>
-              <h3 className="text-2xl font-black uppercase text-white tracking-tighter italic">Integración de <span className="text-primary">Propiedad</span></h3>
+              <h3 className="text-2xl font-black uppercase text-white tracking-tighter ">Integración de <span className="text-primary">Propiedad</span></h3>
               <div className="space-y-6">
                  <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1 opacity-60">Clasificación Estratégica</label>
@@ -582,7 +710,7 @@ const ProjectDetail: React.FC = () => {
                  </div>
                  <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1 opacity-60">Cuerpo del Activo</label>
-                    <textarea className="w-full bg-black/40 border border-white/5 rounded-2xl p-5 text-white text-sm h-32 outline-none resize-none font-medium leading-relaxed italic whitespace-pre-wrap" placeholder="Escribe el copy maestro..." value={newText.content} onChange={e => setNewText({...newText, content: e.target.value})} />
+                    <textarea className="w-full bg-black/40 border border-white/5 rounded-2xl p-5 text-white text-sm h-32 outline-none resize-none font-medium leading-relaxed whitespace-pre-wrap" placeholder="Escribe el copy maestro..." value={newText.content} onChange={e => setNewText({...newText, content: e.target.value})} />
                  </div>
               </div>
               <div className="flex gap-4 pt-4">
@@ -595,22 +723,59 @@ const ProjectDetail: React.FC = () => {
 
       {showMediaLinkModal && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-background-dark/95 backdrop-blur-2xl animate-in fade-in" onClick={() => setShowMediaLinkModal(false)}>
-           <div className="glass-panel border border-white/10 rounded-[3rem] w-full max-w-lg p-12 space-y-10 shadow-2xl" onClick={e => e.stopPropagation()}>
-              <h3 className="text-2xl font-black uppercase text-white tracking-tighter italic">Vincular <span className="text-primary">Activo Digital</span></h3>
-              <div className="space-y-6">
-                 <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest opacity-60">Nombre del Recurso</label>
-                    <input className="w-full bg-black/40 border border-white/5 rounded-2xl p-5 text-white text-sm outline-none font-bold uppercase" placeholder="Ej: Master Video Edit" value={newMediaLink.name} onChange={e => setNewMediaLink({...newMediaLink, name: e.target.value})} />
-                 </div>
-                 <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest opacity-60">Punto de Acceso (URL)</label>
-                    <input className="w-full bg-black/40 border border-white/5 rounded-2xl p-5 text-white text-sm outline-none italic" placeholder="https://..." value={newMediaLink.url} onChange={e => setNewMediaLink({...newMediaLink, url: e.target.value})} />
-                 </div>
+           <div className="glass-panel border border-white/10 rounded-[3rem] w-full max-w-lg p-12 space-y-8 shadow-2xl" onClick={e => e.stopPropagation()}>
+              <h3 className="text-2xl font-black uppercase text-white tracking-tighter ">Integrar <span className="text-primary">Activo Digital</span></h3>
+              
+              <div className="flex bg-white/5 p-1.5 rounded-2xl">
+                 <button onClick={() => setMediaTab('upload')} className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mediaTab === 'upload' ? 'bg-primary text-white shadow-xl' : 'text-slate-500 hover:text-white'}`}>Subir Archivo</button>
+                 <button onClick={() => setMediaTab('link')} className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mediaTab === 'link' ? 'bg-primary text-white shadow-xl' : 'text-slate-500 hover:text-white'}`}>Vincular URL</button>
               </div>
+
+              {mediaTab === 'upload' ? (
+                <div className="space-y-6">
+                   <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest opacity-60">Nombre del Recurso (Opcional)</label>
+                      <input className="w-full bg-black/40 border border-white/5 rounded-2xl p-5 text-white text-sm outline-none font-bold uppercase" placeholder="Ej: Logo Principal" value={newMediaLink.name} onChange={e => setNewMediaLink({...newMediaLink, name: e.target.value})} disabled={isUploading} />
+                   </div>
+                   <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest opacity-60">Archivo Local</label>
+                      <div className={`w-full border-2 border-dashed rounded-3xl p-8 text-center transition-all flex flex-col items-center justify-center gap-4 ${uploadFile ? 'border-primary/50 bg-primary/5' : 'border-white/10 hover:border-primary/30 hover:bg-white/5'}`}>
+                         <span className="material-symbols-outlined text-4xl text-primary">{uploadFile ? 'check_circle' : 'cloud_upload'}</span>
+                         <div>
+                            <p className="text-white font-bold text-sm">{uploadFile ? uploadFile.name : 'Seleccionar archivo'}</p>
+                            <p className="text-slate-500 text-[10px] uppercase font-black tracking-widest mt-1">{uploadFile ? `${(uploadFile.size/1024/1024).toFixed(2)} MB` : 'Soporta imágenes, videos, documentos'}</p>
+                         </div>
+                         <input type="file" className="hidden" id="asset-upload" onChange={e => setUploadFile(e.target.files?.[0] || null)} disabled={isUploading} />
+                         {!isUploading && <label htmlFor="asset-upload" className="btn-premium px-6 py-2 rounded-xl text-white font-black text-[9px] uppercase tracking-widest cursor-pointer mt-2">Explorar</label>}
+                      </div>
+                   </div>
+                   {isUploading && (
+                     <div className="w-full bg-white/5 h-2 rounded-full overflow-hidden">
+                       <div className="h-full bg-primary transition-all duration-300" style={{ width: `${uploadProgress}%` }}></div>
+                     </div>
+                   )}
+                </div>
+              ) : (
+                <div className="space-y-6">
+                   <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest opacity-60">Nombre del Recurso</label>
+                      <input className="w-full bg-black/40 border border-white/5 rounded-2xl p-5 text-white text-sm outline-none font-bold uppercase" placeholder="Ej: Master Video Edit" value={newMediaLink.name} onChange={e => setNewMediaLink({...newMediaLink, name: e.target.value})} />
+                   </div>
+                   <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest opacity-60">Punto de Acceso (URL)</label>
+                      <input className="w-full bg-black/40 border border-white/5 rounded-2xl p-5 text-white text-sm outline-none " placeholder="https://..." value={newMediaLink.url} onChange={e => setNewMediaLink({...newMediaLink, url: e.target.value})} />
+                   </div>
+                </div>
+              )}
+
               <div className="flex gap-4">
-                <button onClick={() => setShowMediaLinkModal(false)} className="flex-1 py-5 bg-white/5 text-slate-600 font-black rounded-[2rem] uppercase text-[10px] tracking-widest">Cerrar</button>
-                <button onClick={handleAddMediaLink} disabled={isSubmitting} className="btn-premium flex-2 py-5 text-white font-black rounded-[2rem] uppercase text-[11px] tracking-widest shadow-xl">
-                  {isSubmitting ? 'Integrando...' : 'Integrar a Bóveda'}
+                <button onClick={() => setShowMediaLinkModal(false)} className="flex-1 py-5 bg-white/5 text-slate-600 font-black rounded-[2rem] uppercase text-[10px] tracking-widest" disabled={isUploading}>Cerrar</button>
+                <button 
+                  onClick={mediaTab === 'upload' ? handleUploadMediaFile : handleAddMediaLink} 
+                  disabled={isSubmitting || isUploading} 
+                  className="btn-premium flex-2 py-5 text-white font-black rounded-[2rem] uppercase text-[11px] tracking-widest shadow-xl"
+                >
+                  {isSubmitting || isUploading ? 'Procesando...' : 'Integrar a Bóveda'}
                 </button>
               </div>
            </div>

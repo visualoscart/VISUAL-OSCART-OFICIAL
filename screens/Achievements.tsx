@@ -129,24 +129,15 @@ const Achievements: React.FC = () => {
   const formattedClosingDate = periodEnd.toLocaleDateString('es-ES', { day: '2-digit', month: 'long' });
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-transparent overflow-hidden relative font-display pattern-orbital">
+    <div className="flex-1 flex flex-col h-full bg-transparent overflow-hidden relative pattern-orbital" style={{ fontFamily: 'Poppins, sans-serif' }}>
       
       <div className="absolute -top-12 -right-12 w-[450px] h-[450px] bg-primary/5 blur-[120px] rounded-full pointer-events-none"></div>
 
       <header className="px-8 py-6 border-b border-white/5 shrink-0 bg-background-dark/30 backdrop-blur-2xl z-10">
         <div className="flex items-center justify-between gap-6 relative z-10">
           <div>
-            <h2 className="text-2xl font-black text-white tracking-tight uppercase italic">Rendimiento <span className="text-primary">& Bonos</span></h2>
-            <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] mt-1.5 opacity-60">Ciclo Operativo Mensual • {periodEnd.toLocaleString('es-ES', { month: 'long', year: 'numeric' })}</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="px-5 py-2.5 bg-white/5 rounded-2xl border border-white/10 text-center backdrop-blur-md shadow-xl">
-               <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest leading-tight">Sincronización</p>
-               <p className="text-base font-black text-white leading-tight mt-0.5">{completedTasks.length} / {relevantTasks.length}</p>
-            </div>
-            <div className="w-14 h-14 bg-primary/20 rounded-2xl flex items-center justify-center text-primary border border-primary/20 shadow-2xl">
-              <span className="material-symbols-outlined text-3xl">emoji_events</span>
-            </div>
+            <h2 className="text-2xl font-bold text-white tracking-tight uppercase">Rendimiento <span className="text-primary">& Bonos</span></h2>
+            <p className="text-slate-500 text-[10px] font-medium uppercase tracking-[0.2em] mt-1.5 opacity-60">Ciclo Operativo Mensual • {periodEnd.toLocaleString('es-ES', { month: 'long', year: 'numeric' })}</p>
           </div>
         </div>
       </header>
@@ -157,8 +148,8 @@ const Achievements: React.FC = () => {
             <div className="bg-amber-500/5 border border-amber-500/10 p-6 rounded-3xl flex items-center gap-5 text-amber-500 backdrop-blur-sm animate-pulse shadow-xl">
                <span className="material-symbols-outlined text-2xl">bolt</span>
                <div>
-                  <p className="text-[10px] font-black uppercase tracking-widest italic">Status: Protocolo en Despliegue</p>
-                  <p className="text-sm opacity-80 leading-relaxed font-bold">Consolida las misiones pendientes para calificar en los incentivos del periodo actual.</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest">Status: Protocolo en Despliegue</p>
+                  <p className="text-sm opacity-80 leading-relaxed font-medium">Consolida las misiones pendientes para calificar en los incentivos del periodo actual.</p>
                </div>
             </div>
           )}
@@ -184,22 +175,22 @@ const Achievements: React.FC = () => {
                       <span className={`material-symbols-outlined text-4xl ${logro.earned ? 'animate-bounce-slow text-white' : 'text-slate-600'}`}>{logro.icon}</span>
                     </div>
                     {logro.earned ? (
-                      <span className={`px-4 py-2 bg-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase tracking-[0.2em] rounded-xl border border-emerald-500/40 shadow-[0_0_15px_rgba(52,211,153,0.3)]`}>
+                      <span className={`px-4 py-2 bg-emerald-500/20 text-emerald-400 text-[10px] font-bold uppercase tracking-[0.2em] rounded-xl border border-emerald-500/40 shadow-[0_0_15px_rgba(52,211,153,0.3)]`}>
                         UNLOCKED
                       </span>
                     ) : (
-                      <span className="px-4 py-2 bg-white/5 text-slate-500 text-[9px] font-black uppercase tracking-widest rounded-xl border border-white/5">
+                      <span className="px-4 py-2 bg-white/5 text-slate-500 text-[9px] font-bold uppercase tracking-widest rounded-xl border border-white/5">
                         EN PROCESO...
                       </span>
                     )}
                   </div>
-                  <h3 className={`text-2xl font-black mb-2 italic tracking-tight uppercase transition-colors duration-500 ${logro.earned ? 'text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]' : 'text-slate-500'}`}>{logro.title}</h3>
-                  <p className="text-slate-400 text-xs italic leading-relaxed mb-10 flex-1 opacity-70">"{logro.description}"</p>
+                  <h3 className={`text-2xl font-bold mb-2 tracking-tight uppercase transition-colors duration-500 ${logro.earned ? 'text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]' : 'text-slate-500'}`}>{logro.title}</h3>
+                  <p className="text-slate-400 text-xs leading-relaxed mb-10 flex-1 opacity-70">"{logro.description}"</p>
                   
                   <div className="space-y-6 pt-6 border-t border-white/5">
                     <div className="flex items-center justify-between">
-                      <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">{logro.requirement}</span>
-                      <span className={`text-xs font-black uppercase tracking-widest ${logro.earned ? 'text-white' : 'text-slate-500'}`}>{Math.round(logro.progress)}%</span>
+                      <span className="text-[9px] font-medium text-slate-500 uppercase tracking-[0.2em]">{logro.requirement}</span>
+                      <span className={`text-xs font-bold uppercase tracking-widest ${logro.earned ? 'text-white' : 'text-slate-500'}`}>{Math.round(logro.progress)}%</span>
                     </div>
                     <div className="h-2.5 bg-white/5 rounded-full overflow-hidden border border-white/5 shadow-inner">
                        <div 
@@ -210,7 +201,7 @@ const Achievements: React.FC = () => {
                     <div className={`mt-4 p-5 rounded-2xl bg-white/[0.03] border flex items-center justify-between group-hover:bg-white/5 transition-all shadow-lg ${logro.earned ? 'border-white/20' : 'border-white/5'}`}>
                       <div className="flex items-center gap-4">
                         <span className={`material-symbols-outlined text-2xl transition-colors ${logro.earned ? 'text-emerald-400 animate-pulse' : 'text-slate-600'}`}>payments</span>
-                        <span className={`text-sm font-black uppercase italic tracking-tight ${logro.earned ? 'text-white' : 'text-slate-600'}`}>{logro.bonus}</span>
+                        <span className={`text-sm font-bold uppercase tracking-tight ${logro.earned ? 'text-white' : 'text-slate-600'}`}>{logro.bonus}</span>
                       </div>
                       {logro.earned && <span className="material-symbols-outlined text-emerald-400 text-xl animate-pulse">verified</span>}
                     </div>
@@ -223,26 +214,26 @@ const Achievements: React.FC = () => {
           <div className="glass-panel border border-white/5 rounded-[3rem] p-10 flex flex-col sm:flex-row items-center justify-between gap-12 shadow-2xl relative overflow-hidden group bg-white/[0.01]">
              <div className="absolute top-0 left-0 w-2 h-full bg-primary/20"></div>
              <div className="space-y-3 text-center sm:text-left relative z-10">
-                <h4 className="text-2xl font-black text-white uppercase italic tracking-tighter">Balance <span className="text-primary">Incentivo</span></h4>
-                <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">CIERRE DE CICLO: <span className="text-primary font-black ml-2">{formattedClosingDate}</span></p>
+                <h4 className="text-2xl font-bold text-white uppercase tracking-tighter">Balance <span className="text-primary">Incentivo</span></h4>
+                <p className="text-slate-400 text-[10px] font-medium uppercase tracking-widest">CIERRE DE CICLO: <span className="text-primary font-bold ml-2">{formattedClosingDate}</span></p>
                 <div className="flex items-center gap-3 mt-6 justify-center sm:justify-start">
                    <span className="material-symbols-outlined text-rose-500 text-lg">timer</span>
-                   <span className="text-xs font-black text-slate-500 uppercase tracking-widest italic">{daysRemaining} días para el desembolso</span>
+                   <span className="text-xs font-medium text-slate-500 uppercase tracking-widest">{daysRemaining} días para el desembolso</span>
                 </div>
              </div>
              
              <div className="flex items-center gap-12 relative z-10">
                 <div className="text-center">
-                   <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest mb-2 opacity-60">Acumulado Total</p>
+                   <p className="text-[9px] font-medium text-slate-600 uppercase tracking-widest mb-2 opacity-60">Acumulado Total</p>
                    <div className="flex items-baseline gap-2">
-                      <span className="text-5xl font-black text-emerald-400 italic tracking-tighter drop-shadow-[0_0_20px_rgba(52,211,153,0.3)]">${(isMarketingNinja ? 10 : 0) + (isStrategyMaster ? 20 : 0)}</span>
-                      <span className="text-slate-600 font-black text-[10px] uppercase tracking-widest italic">USD</span>
+                      <span className="text-5xl font-bold text-emerald-400 tracking-tighter drop-shadow-[0_0_20px_rgba(52,211,153,0.3)]">${(isMarketingNinja ? 10 : 0) + (isStrategyMaster ? 20 : 0)}</span>
+                      <span className="text-slate-600 font-medium text-[10px] uppercase tracking-widest">USD</span>
                    </div>
                 </div>
                 <div className="w-px h-16 bg-white/10 hidden sm:block"></div>
                 <div className="text-center">
-                   <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest mb-3 opacity-60">Estado Actual</p>
-                   <div className={`px-6 py-2.5 rounded-xl border text-[9px] font-black uppercase tracking-[0.2em] shadow-xl transition-all ${
+                   <p className="text-[9px] font-medium text-slate-600 uppercase tracking-widest mb-3 opacity-60">Estado Actual</p>
+                   <div className={`px-6 py-2.5 rounded-xl border text-[9px] font-bold uppercase tracking-[0.2em] shadow-xl transition-all ${
                       allTasksDone ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40 shadow-[0_0_20px_rgba(52,211,153,0.2)]' : 'bg-white/5 text-slate-500 border-white/5'
                    }`}>
                       {allTasksDone ? 'QUALIFIED' : 'PENDING'}

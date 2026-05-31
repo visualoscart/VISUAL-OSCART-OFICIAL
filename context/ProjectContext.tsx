@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
-import { Project, TextAsset, MediaAsset, Task, UserProfile, Receipt, ChatMessage, Expense, ExpenseTracking, Campaign, PerformanceReport } from '../types';
+import { Project, TextAsset, MediaAsset, Task, UserProfile, Receipt, ChatMessage, Expense, ExpenseTracking, Campaign, PerformanceReport, CustomerReceipt, CustomerQuote, ServiceCatalogItem, Income } from '../types';
 import { supabase } from '../lib/supabase';
 
 interface Notification {
@@ -18,6 +18,7 @@ interface FinanceSettings {
   taxLinks?: Record<string, string>; // "MM-YYYY" -> incomeId
   payrollLinks?: Record<string, string>; // userId -> incomeId
   payrollDays?: Record<string, number>; // userId -> day (1-31)
+  receiptLinks?: Record<string, string>; // receiptId -> incomeId
 }
 
 interface ProjectContextType {
@@ -31,6 +32,9 @@ interface ProjectContextType {
   campaigns: Campaign[];
   performances: PerformanceReport[];
   customerReceipts: CustomerReceipt[];
+  customerQuotes: CustomerQuote[];
+  addCustomerQuote: (quote: Omit<CustomerQuote, 'id' | 'createdAt'>) => Promise<void>;
+  deleteCustomerQuote: (id: string) => Promise<void>;
   servicesCatalog: ServiceCatalogItem[];
   notifications: Notification[];
   incomes: Income[];
@@ -63,7 +67,7 @@ interface ProjectContextType {
   updateBaseSalary: (userId: string, amount: number) => Promise<void>;
   updateTaskRate: (userId: string, amount: number) => Promise<void>;
   updateFinanceSettings: (settings: Partial<FinanceSettings>) => Promise<void>;
-  addIncome: (source: string, amount: number, date: string, description?: string) => Promise<void>;
+  addIncome: (source: string, amount: number, day: number, description?: string) => Promise<void>;
   deleteIncome: (id: string) => Promise<void>;
   updateIncome: (id: string, data: Partial<Income>) => Promise<void>;
   addExpense: (name: string, amount: number, day: string, incomeId?: string, isOneTime?: boolean, vMonth?: number, vYear?: number) => Promise<void>;
@@ -78,7 +82,7 @@ interface ProjectContextType {
   updateTask: (taskId: string, data: Partial<Task>) => Promise<void>;
   toggleTaskStatus: (taskId: string) => Promise<void>;
   deleteTask: (taskId: string) => Promise<void>;
-  sendReceiptToUser: (receipt: Receipt) => Promise<boolean>;
+  sendReceiptToUser: (receipt: Receipt) => Promise<Receipt | null>;
   deleteReceipt: (receiptId: string) => Promise<void>;
   deleteUser: (userId: string) => Promise<void>;
   markNotificationAsRead: (id: string) => Promise<void>;
@@ -116,6 +120,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [performances, setPerformances] = useState<PerformanceReport[]>([]);
   const [customerReceipts, setCustomerReceipts] = useState<CustomerReceipt[]>([]);
+  const [customerQuotes, setCustomerQuotes] = useState<CustomerQuote[]>([]);
   const [servicesCatalog, setServicesCatalog] = useState<ServiceCatalogItem[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [baseSalaries, setBaseSalaries] = useState<Record<string, number>>({});
@@ -180,18 +185,33 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
       }
       
       if (pRes.data) {
-        setProjects(pRes.data.map(p => ({ 
-          id: p.id, name: p.name, niche: p.niche, client: p.client,
-          date: p.date, status: p.status, progress: p.progress,
-          logoUrl: p.logo_url, brandManualUrl: p.brand_manual_url,
-          brandCode: p.typography?.brandCode,
-          brief: p.brief, hell: p.hell, heaven: p.heaven,
-          monthlyFee: Number(p.monthly_fee), textRepository: p.text_repository || [],
-          mediaRepository: p.media_repository || [], brandColors: p.brand_colors || [],
-          typography: p.typography || undefined,
-          driveFolderId: p.typography?.driveFolderId,
-          collaborators: p.collaborators || []
-        })));
+        const now = new Date();
+        const validProjects: any[] = [];
+
+        for (const p of pRes.data) {
+          if (p.status === 'Inactivo' && p.typography?.inactiveAt) {
+            const inactiveDate = new Date(p.typography.inactiveAt);
+            const diffDays = Math.ceil(Math.abs(now.getTime() - inactiveDate.getTime()) / (1000 * 60 * 60 * 24));
+            if (diffDays >= 60) {
+              // Fire and forget delete
+              supabase.from('projects').delete().eq('id', p.id).then();
+              continue;
+            }
+          }
+          validProjects.push({ 
+            id: p.id, name: p.name, niche: p.niche, client: p.client,
+            date: p.date, status: p.status, progress: p.progress,
+            logoUrl: p.logo_url, brandManualUrl: p.brand_manual_url,
+            brandCode: p.typography?.brandCode,
+            brief: p.brief, hell: p.hell, heaven: p.heaven,
+            monthlyFee: Number(p.monthly_fee), textRepository: p.text_repository || [],
+            mediaRepository: p.media_repository || [], brandColors: p.brand_colors || [],
+            typography: p.typography || undefined,
+            driveFolderId: p.typography?.driveFolderId,
+            collaborators: p.collaborators || []
+          });
+        }
+        setProjects(validProjects);
       }
 
       if (tRes.data) {
@@ -220,6 +240,14 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
         }));
       }
 
+      let parsedFinanceSettings: FinanceSettings = { estTaxes: 0 };
+      if (sRes.data) {
+        const found = sRes.data.find(set => set.key === 'financeSettings');
+        if (found) {
+          try { parsedFinanceSettings = JSON.parse(found.value); } catch(e) {}
+        }
+      }
+
       if (rRes.data) {
         console.log("Fetched receipts from DB:", rRes.data.length);
         setReceipts(rRes.data.map(r => ({
@@ -229,7 +257,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
           completedTasks: r.completed_tasks,
           tasksTotal: r.tasks_total,
           total: Number(r.total), date: r.date, receiptNumber: r.receipt_number,
-          incomeId: r.income_id
+          incomeId: parsedFinanceSettings?.receiptLinks?.[String(r.id)] || r.income_id
         })));
       }
 
@@ -274,6 +302,9 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
           }
           if (set.key === 'customer_receipts_json') {
              try { setCustomerReceipts(JSON.parse(set.value)); } catch(e) { setCustomerReceipts([]); }
+          }
+          if (set.key === 'customerQuotes') {
+             try { setCustomerQuotes(JSON.parse(set.value)); } catch(e) { setCustomerQuotes([]); }
           }
           if (set.key === 'services_catalog_json') {
              try { setServicesCatalog(JSON.parse(set.value)); } catch(e) { setServicesCatalog([]); }
@@ -337,7 +368,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
 
   return (
     <ProjectContext.Provider value={{
-      projects, tasks, currentUser, usersDB, receipts, expenses, expenseTracking, incomes, campaigns, performances, customerReceipts, servicesCatalog, notifications, baseSalaries, taskRates, financeSettings, studioLogo, dashboardBanner, dashboardBannerTitle, dashboardBannerSubtitle, loginBackground, loginTitle, loginSubtitle, isSyncing, toast, showToast, messages, celebrationQuote,
+      projects, tasks, currentUser, usersDB, receipts, expenses, expenseTracking, incomes, campaigns, performances, customerReceipts, customerQuotes, servicesCatalog, notifications, baseSalaries, taskRates, financeSettings, studioLogo, dashboardBanner, dashboardBannerTitle, dashboardBannerSubtitle, loginBackground, loginTitle, loginSubtitle, isSyncing, toast, showToast, messages, celebrationQuote,
       login, logout,
       addServiceCatalogItem: async (data) => {
         try {
@@ -519,7 +550,35 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
           showToast("Error al eliminar reporte", "error");
         }
       },
+      
+      addCustomerQuote: async (data) => {
+        try {
+          const newItem = {
+            ...data,
+            id: `quote-${Date.now()}`,
+            createdAt: new Date().toISOString()
+          };
+          const nextList = [...customerQuotes, newItem];
+          setCustomerQuotes(nextList);
+          await supabase.from('settings').upsert({ key: 'customerQuotes', value: JSON.stringify(nextList) });
+          showToast("Cotización guardada", "success");
+        } catch (error) {
+          console.error("Error saving quote:", error);
+          showToast("Error al guardar cotización", "error");
+        }
+      },
+      deleteCustomerQuote: async (id) => {
+        try {
+          const nextList = customerQuotes.filter(c => c.id !== id);
+          setCustomerQuotes(nextList);
+          await supabase.from('settings').upsert({ key: 'customerQuotes', value: JSON.stringify(nextList) });
+          showToast("Cotización eliminada", "success");
+        } catch (error) {
+          showToast("Error al eliminar cotización", "error");
+        }
+      },
       addCustomerReceipt: async (data) => {
+
         try {
           const newItem: CustomerReceipt = {
             ...data,
@@ -858,25 +917,60 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
         await fetchData(true);
       },
       updateTask: async (id, d) => { 
+        const t = tasks.find(x => x.id === id);
+        const oldRefMatch = t?.description?.match(/\[REF:(camp-[^:]+):(theme-[^\]]+)\]/);
+
         const mapped: any = { ...d };
         if (d.projectId) { mapped.project_id = d.projectId; delete mapped.projectId; }
         if (d.collaboratorId) { mapped.collaborator_id = d.collaboratorId; delete mapped.collaboratorId; }
         if (d.driveLink !== undefined) { mapped.drive_link = d.driveLink; delete mapped.driveLink; }
         if (d.completedAt) { mapped.completed_at = d.completedAt; delete mapped.completedAt; }
+        
         // We cannot store campaignId/ThemeId in the tasks table as columns don't exist
         delete mapped.campaignId;
         delete mapped.campaignThemeId;
         
-        if (d.title) mapped.title = d.title;
-        if (d.description) mapped.description = d.description;
-        if (d.date) mapped.date = d.date;
-        if (d.status) mapped.status = d.status;
+        if (d.title !== undefined) mapped.title = d.title;
+        if (d.description !== undefined) {
+          let finalDesc = d.description;
+          if (oldRefMatch && !finalDesc.match(/\[REF:/)) {
+            finalDesc += `\n\n${oldRefMatch[0]}`;
+          }
+          mapped.description = finalDesc;
+        }
+        if (d.date !== undefined) mapped.date = d.date;
+        if (d.status !== undefined) mapped.status = d.status;
+        
         const { error } = await supabase.from('tasks').update(mapped).eq('id', id);
         if (error) {
           console.error("Task Update Error:", error);
           showToast("Error al actualizar tarea", "error");
           return;
         }
+
+        // Sincronizar fecha con la campaña si cambió y la tarea está vinculada
+        if (d.date !== undefined && t && t.date !== d.date && oldRefMatch) {
+          const campaignId = oldRefMatch[1];
+          const themeId = oldRefMatch[2];
+          const campaign = campaigns.find(c => c.id === campaignId);
+          if (campaign) {
+            const theme = campaign.themes.find(th => th.id === themeId);
+            if (theme && theme.productionId) {
+              const prodDateIndex = campaign.productionDates.findIndex(pd => pd.id === theme.productionId);
+              if (prodDateIndex !== -1) {
+                const newProdDates = [...campaign.productionDates];
+                newProdDates[prodDateIndex] = { ...newProdDates[prodDateIndex], date: d.date };
+                
+                const nextList = campaigns.map(c => c.id === campaignId ? { ...c, productionDates: newProdDates } : c);
+                const { error: syncError } = await supabase.from('settings').upsert({ key: 'campaigns_json', value: JSON.stringify(nextList) });
+                if (!syncError) {
+                   setCampaigns(nextList);
+                }
+              }
+            }
+          }
+        }
+
         await fetchData(true); 
       },
       toggleTaskStatus: async (id) => {
@@ -948,7 +1042,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
             income_id: r.incomeId 
           };
           console.log("Sending receipt payload:", payload);
-          const { error } = await supabase.from('receipts').insert([payload]);
+          const { data, error } = await supabase.from('receipts').insert([payload]).select();
           if (error) {
             console.error("Supabase Receipt Insert Error:", error);
             // Fallback: try without the new columns if they were the cause
@@ -965,26 +1059,39 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
               receipt_number: r.receiptNumber 
             };
             console.log("Sending fallback payload:", fallbackPayload);
-            const { error: error2 } = await supabase.from('receipts').insert([fallbackPayload]);
+            const { data: data2, error: error2 } = await supabase.from('receipts').insert([fallbackPayload]).select();
             if (error2) {
               console.error("Supabase Receipt Fallback Insert Error:", error2);
-              return false;
+              return null;
             }
+            console.log("Fallback Receipt inserted successfully");
+            await createNotification(r.userId, "Liquidación Emitida", `Se ha generado tu recibo de ${r.month}.`, "success");
+            await fetchData(true); 
+            return data2?.[0] ? { ...r, id: String(data2[0].id) } : r;
           }
           console.log("Receipt inserted successfully");
           await createNotification(r.userId, "Liquidación Emitida", `Se ha generado tu recibo de ${r.month}.`, "success");
           await fetchData(true); 
-          return true;
+          return data?.[0] ? { ...r, id: String(data[0].id) } : r;
         } catch (err) {
           console.error("sendReceiptToUser Exception:", err);
-          return false;
+          return null;
         }
       },
       deleteReceipt: async (id) => {
         try {
           const { error } = await supabase.from('receipts').delete().eq('id', id);
           if (error) throw error;
-          fetchData(true);
+          
+          // Clear receipt link in financeSettings
+          const nextFinanceSettings = { ...financeSettings };
+          if (nextFinanceSettings.receiptLinks && nextFinanceSettings.receiptLinks[id]) {
+            delete nextFinanceSettings.receiptLinks[id];
+            await supabase.from('settings').upsert({key: 'financeSettings', value: JSON.stringify(nextFinanceSettings)});
+            setFinanceSettings(nextFinanceSettings);
+          }
+
+          await fetchData(true);
           showToast("Registro de pago eliminado");
         } catch (err) {
           showToast("Error al eliminar el recibo", "error");

@@ -71,27 +71,36 @@ const getFreshDemographics = () => ({
 });
 
 const Performance: React.FC = () => {
- const { 
- projects, 
- campaigns, 
- performances, 
- tasks,
- addPerformance, 
- updatePerformance, 
- deletePerformance,
- studioLogo, 
- showToast 
- } = useProjects();
+  const { 
+    projects, 
+    tasks, 
+    financeSettings, 
+    expenses, 
+    incomes, 
+    baseSalaries, 
+    usersDB, 
+    performances,
+    receipts,
+    campaigns,
+    addPerformance, 
+    updatePerformance, 
+    deletePerformance,
+    studioLogo, 
+    showToast 
+  } = useProjects();
+  const activeProjects = projects.filter(p => p.status !== 'Inactivo');
 
  const navigate = useNavigate();
  const [searchParams] = useSearchParams();
 
  useEffect(() => {
  const projectId = searchParams.get('project');
- if (projectId && projects.length > 0) {
- setSelectedProjectId(projectId);
- setIsViewingDashboard(true);
- }
+    if (projectId && activeProjects.length > 0) {
+      if (activeProjects.some(p => p.id === projectId)) {
+        setSelectedProjectId(projectId);
+        setIsViewingDashboard(true);
+      }
+    }
  }, [searchParams, projects]);
 
  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
@@ -157,7 +166,7 @@ const Performance: React.FC = () => {
  const [extraWorks, setExtraWorks] = useState<{ description: string; date: string }[]>([]);
  const [isDownloading, setIsDownloading] = useState(false);
 
- const selectedProject = projects.find(p => p.id === selectedProjectId);
+ const selectedProject = activeProjects.find(p => p.id === selectedProjectId);
 
  // Vault/History for selected brand
  const brandReports = useMemo(() => {
@@ -561,7 +570,7 @@ const Performance: React.FC = () => {
  exit={{ opacity: 0, scale: 0.95 }}
  className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
  >
- {projects.map(p => (
+ {activeProjects.map(p => (
  <button
  key={p.id}
  onClick={() => {
@@ -1475,7 +1484,7 @@ const Performance: React.FC = () => {
  paddingAngle={4}
  dataKey="value"
  stroke="none"
- label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
+ label={({ percent }) => `${((percent ?? 0) * 100).toFixed(0)}%`}
  >
  {pieData.map((entry, index) => (
  <Cell key={`cell-${index}`} fill={entry.color} />
@@ -1512,10 +1521,10 @@ const Performance: React.FC = () => {
  <XAxis dataKey="age"fontSize={9} fontWeight="700"axisLine={false} tickLine={false} stroke="#64748b"/>
  <YAxis fontSize={9} fontWeight="700"axisLine={false} tickLine={false} tickFormatter={(val) => `${val}%`} stroke="#64748b"/>
  <Bar name="Hombres"dataKey="male"fill={selectedProject?.brandColors?.[0] || "#8c2bee"}radius={[4, 4, 0, 0]} barSize={16}>
- <LabelList dataKey="male" position="top" fontSize={8} fill="#ffffff" formatter={(v: number) => `${v}%`} />
+ <LabelList dataKey="male" position="top" fontSize={8} fill="#ffffff" formatter={(v: any) => `${v}%`} />
  </Bar>
  <Bar name="Mujeres"dataKey="female"fill={selectedProject?.brandColors?.[1] || "#f97316"}radius={[4, 4, 0, 0]} barSize={16}>
- <LabelList dataKey="female" position="top" fontSize={8} fill="#ffffff" formatter={(v: number) => `${v}%`} />
+ <LabelList dataKey="female" position="top" fontSize={8} fill="#ffffff" formatter={(v: any) => `${v}%`} />
  </Bar>
  </BarChart>
  </ResponsiveContainer>

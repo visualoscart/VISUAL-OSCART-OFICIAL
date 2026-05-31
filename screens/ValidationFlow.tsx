@@ -93,7 +93,7 @@ const ValidationFlow: React.FC = () => {
         <button onClick={() => navigate('/projects')} className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center text-slate-500 hover:text-white transition-all">
           <span className="material-symbols-outlined">close</span>
         </button>
-        <h2 className="text-xl font-black uppercase tracking-tighter italic">Despliegue Estratégico <span className="text-primary text-[10px] ml-3 tracking-[0.4em] font-black opacity-60">Fase {step}/5</span></h2>
+        <h2 className="text-xl font-black uppercase tracking-tighter italic">Despliegue Estratégico <span className="text-primary text-[10px] ml-3 tracking-[0.4em] font-black opacity-60">Fase {step}/4</span></h2>
         <div className="w-10"></div>
       </header>
 
@@ -145,10 +145,6 @@ const ValidationFlow: React.FC = () => {
                 <p className="text-slate-500 text-[9px] font-black uppercase tracking-[0.4em] mt-2 opacity-60">Sincronización de manuales y paletas</p>
               </div>
               <div className="space-y-10">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Punto de Acceso Manual de Marca</label>
-                  <input className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-5 text-white text-xs outline-none focus:border-primary italic" value={formData.brandManualUrl} onChange={e => setFormData({...formData, brandManualUrl: e.target.value})} placeholder="https://drive.google.com/..." />
-                </div>
                 <div className="space-y-6">
                   <div className="flex justify-between items-center px-1">
                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Matriz de Colores</label>
@@ -169,44 +165,6 @@ const ValidationFlow: React.FC = () => {
           )}
 
           {step === 3 && (
-            <div className="space-y-16 animate-in fade-in max-w-2xl mx-auto">
-              <div className="text-center">
-                <h1 className="text-4xl font-black uppercase tracking-tighter italic">Protocolo <span className="text-primary">Tipográfico</span></h1>
-                <p className="text-slate-500 text-[9px] font-black uppercase tracking-[0.4em] mt-2 opacity-60">Configuración de fuentes y Google Fonts</p>
-              </div>
-              
-              <div className="space-y-8">
-                {/* TITULOS */}
-                <div className="glass-panel p-8 rounded-[2.5rem] border border-white/5 space-y-4">
-                  <label className="text-[10px] font-black text-primary uppercase tracking-widest block italic">Títulos Principales</label>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <input className="bg-white/5 border border-white/10 rounded-xl px-5 py-4 text-white text-xs outline-none focus:border-primary" placeholder="Nombre de la fuente (ej: Inter)" value={formData.typography.titles.name} onChange={e => setFormData({...formData, typography: {...formData.typography, titles: {...formData.typography.titles, name: e.target.value}}})} />
-                    <input className="bg-white/5 border border-white/10 rounded-xl px-5 py-4 text-white text-[10px] outline-none focus:border-primary italic" placeholder="URL Google Fonts" value={formData.typography.titles.url} onChange={e => setFormData({...formData, typography: {...formData.typography, titles: {...formData.typography.titles, url: e.target.value}}})} />
-                  </div>
-                </div>
-
-                {/* SUBTITULOS */}
-                <div className="glass-panel p-8 rounded-[2.5rem] border border-white/5 space-y-4">
-                  <label className="text-[10px] font-black text-primary uppercase tracking-widest block italic">Subtítulos y Acentos</label>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <input className="bg-white/5 border border-white/10 rounded-xl px-5 py-4 text-white text-xs outline-none focus:border-primary" placeholder="Nombre de la fuente (ej: Outfit)" value={formData.typography.subtitles.name} onChange={e => setFormData({...formData, typography: {...formData.typography, subtitles: {...formData.typography.subtitles, name: e.target.value}}})} />
-                    <input className="bg-white/5 border border-white/10 rounded-xl px-5 py-4 text-white text-[10px] outline-none focus:border-primary italic" placeholder="URL Google Fonts" value={formData.typography.subtitles.url} onChange={e => setFormData({...formData, typography: {...formData.typography, subtitles: {...formData.typography.subtitles, url: e.target.value}}})} />
-                  </div>
-                </div>
-
-                {/* CUERPO */}
-                <div className="glass-panel p-8 rounded-[2.5rem] border border-white/5 space-y-4">
-                  <label className="text-[10px] font-black text-primary uppercase tracking-widest block italic">Cuerpo de Texto</label>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <input className="bg-white/5 border border-white/10 rounded-xl px-5 py-4 text-white text-xs outline-none focus:border-primary" placeholder="Nombre de la fuente (ej: Roboto)" value={formData.typography.body.name} onChange={e => setFormData({...formData, typography: {...formData.typography, body: {...formData.typography.body, name: e.target.value}}})} />
-                    <input className="bg-white/5 border border-white/10 rounded-xl px-5 py-4 text-white text-[10px] outline-none focus:border-primary italic" placeholder="URL Google Fonts" value={formData.typography.body.url} onChange={e => setFormData({...formData, typography: {...formData.typography, body: {...formData.typography.body, url: e.target.value}}})} />
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {step === 4 && (
             <div className="space-y-16 animate-in fade-in">
               <div className="text-center">
                 <h1 className="text-4xl font-black uppercase tracking-tighter italic">Psicología de <span className="text-primary">Marca</span></h1>
@@ -231,7 +189,7 @@ const ValidationFlow: React.FC = () => {
             </div>
           )}
 
-          {step === 5 && (
+          {step === 4 && (
             <div className="text-center py-20 animate-in zoom-in-95">
               <div className="w-32 h-32 bg-primary/10 rounded-[3rem] flex items-center justify-center text-primary mx-auto mb-10 shadow-[0_0_50px_rgba(140,43,238,0.2)] border border-primary/20">
                 <span className="material-symbols-outlined text-6xl">verified</span>
@@ -247,8 +205,8 @@ const ValidationFlow: React.FC = () => {
 
       <footer className="p-10 border-t border-white/5 flex justify-between bg-background-dark/30 backdrop-blur-2xl z-20 shrink-0">
         <button onClick={() => setStep(s => Math.max(s - 1, 1))} className="px-10 py-4 text-slate-500 uppercase font-black text-[10px] tracking-[0.3em] disabled:opacity-0 transition-all hover:text-white" disabled={step === 1}>Paso Anterior</button>
-        <button onClick={step === 5 ? handleFinish : () => setStep(s => s + 1)} className="btn-premium px-12 py-5 text-white font-black rounded-2xl shadow-2xl active:scale-95 text-[11px] uppercase tracking-widest" disabled={isSubmitting}>
-          {isSubmitting ? "Sincronizando..." : step === 5 ? "Finalizar Despliegue" : "Siguiente Fase"}
+        <button onClick={step === 4 ? handleFinish : () => setStep(s => s + 1)} className="btn-premium px-12 py-5 text-white font-black rounded-2xl shadow-2xl active:scale-95 text-[11px] uppercase tracking-widest" disabled={isSubmitting}>
+          {isSubmitting ? "Sincronizando..." : step === 4 ? "Finalizar Despliegue" : "Siguiente Fase"}
         </button>
       </footer>
     </div>

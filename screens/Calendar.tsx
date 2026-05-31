@@ -9,6 +9,7 @@ const Calendar: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { projects, tasks, addTask, updateTask, toggleTaskStatus, deleteTask, usersDB, showToast } = useProjects();
+  const activeProjects = projects.filter(p => p.status !== 'Inactivo');
   
   const [selectedBrandId, setSelectedBrandId] = useState<'all' | string>('all');
   const [showModal, setShowModal] = useState(false);
@@ -136,7 +137,7 @@ const Calendar: React.FC = () => {
       return;
     }
 
-    const project = projects.find(p => p.id === projectId);
+    const project = activeProjects.find(p => p.id === projectId);
     const folderId = project?.driveFolderId || import.meta.env.VITE_GOOGLE_DRIVE_MASTER_FOLDER_ID;
 
     setIsUploading(true);
@@ -144,9 +145,10 @@ const Calendar: React.FC = () => {
     try {
       let finalUrl = '';
       if (!selectFolderMode && files.length === 1) {
-        finalUrl = await uploadFileResumable(files[0], folderId, (progress) => {
+        const uploadResult = await uploadFileResumable(files[0], folderId, (progress) => {
           setUploadProgress(progress);
         });
+        finalUrl = uploadResult.url;
       } else {
         // Upload multiple files/folder
         let targetFolderId = folderId;
@@ -215,7 +217,7 @@ const Calendar: React.FC = () => {
   const monthName = currentDate.toLocaleString('es-ES', { month: 'long' });
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-transparent relative pattern-orbital overflow-y-auto scrollbar-hide font-display">
+    <div className="flex-1 flex flex-col h-full bg-transparent relative pattern-orbital overflow-y-auto scrollbar-hide" style={{ fontFamily: 'Poppins, sans-serif' }}>
       
       {/* Luces ambientales */}
       <div className="absolute -top-24 -right-24 w-[600px] h-[600px] bg-primary/5 blur-[120px] rounded-full pointer-events-none"></div>
@@ -227,7 +229,7 @@ const Calendar: React.FC = () => {
             <div className="bg-primary/20 p-2 rounded-xl text-primary border border-primary/20 shadow-lg">
               <span className="material-symbols-outlined text-xl sm:text-2xl">calendar_today</span>
             </div>
-            <h2 className="text-xl sm:text-2xl font-black text-white capitalize italic tracking-tighter">{monthName} <span className="text-primary">{currentYear}</span></h2>
+            <h2 className="text-xl sm:text-2xl font-bold text-white capitalize tracking-tighter">{monthName} <span className="text-primary">{currentYear}</span></h2>
           </div>
           <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-4">
             <div className="flex bg-black/40 p-1 rounded-xl border border-white/10 backdrop-blur-md">
@@ -247,7 +249,7 @@ const Calendar: React.FC = () => {
         <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-0.5">
           <button onClick={() => setSelectedBrandId('all')} className={`px-4 sm:px-5 py-2.5 rounded-xl text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap border ${selectedBrandId === 'all' ? 'bg-primary border-primary text-white shadow-lg' : 'bg-black/40 border-white/5 text-slate-500 hover:text-white'}`}>Flujo Global</button>
           <div className="w-px h-6 bg-white/10 mx-1 shrink-0"></div>
-          {projects.map(p => (
+          {activeProjects.map(p => (
             <button key={p.id} onClick={() => setSelectedBrandId(p.id)} className={`flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 rounded-xl text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap border ${selectedBrandId === p.id ? 'bg-accent-orange border-accent-orange text-white shadow-lg' : 'bg-black/40 border-white/5 text-slate-500 hover:text-white'}`}>
               {p.logoUrl && <img src={p.logoUrl} className="w-3 h-3 sm:w-4 sm:h-4 rounded-full object-cover border border-white/20" />}
               {p.name}
@@ -297,7 +299,7 @@ const Calendar: React.FC = () => {
                   className={`mt-1 sm:mt-2 space-y-1 sm:space-y-1.5 h-[65px] sm:h-[105px] overflow-y-auto scrollbar-hide relative z-0`}
                 >
                   {dayTasks.map(t => { 
-                    const p = projects.find(x => x.id === t.projectId); 
+                    const p = activeProjects.find(x => x.id === t.projectId); 
                     const u = usersDB.find(x => x.id === t.collaboratorId);
                     const isDone = t.status === 'Completada';
                     return (
@@ -345,33 +347,33 @@ const Calendar: React.FC = () => {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-background-dark/95 backdrop-blur-2xl animate-in fade-in" onClick={() => setShowModal(false)}>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-background-dark/95 backdrop-blur-2xl animate-in fade-in" onClick={() => setShowModal(false)} style={{ fontFamily: 'Poppins, sans-serif' }}>
           <div className="max-w-xl w-full glass-panel border border-white/10 rounded-[2rem] sm:rounded-[3rem] shadow-2xl p-6 sm:p-12 space-y-8 overflow-y-auto max-h-[90vh]" onClick={e => e.stopPropagation()}>
-            <h3 className="text-xl sm:text-2xl font-black text-white uppercase italic tracking-tighter">Agendar <span className="text-primary">Misión</span></h3>
+            <h3 className="text-xl sm:text-2xl font-bold text-white uppercase tracking-tighter">Agendar <span className="text-primary">Misión</span></h3>
             <form onSubmit={handleSaveTask} className="space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-[9px] font-black text-slate-500 uppercase px-1 tracking-widest">Marca Estratégica</label>
-                  <select required className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-white text-xs font-black uppercase outline-none focus:border-primary" value={taskForm.projectId} onChange={e => setTaskForm({...taskForm, projectId: e.target.value})}>
+                  <label className="text-[9px] font-medium text-slate-500 uppercase px-1 tracking-widest">Marca Estratégica</label>
+                  <select required className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-white text-xs font-normal uppercase outline-none focus:border-primary" value={taskForm.projectId} onChange={e => setTaskForm({...taskForm, projectId: e.target.value})}>
                     <option value="">Seleccionar...</option>
-                    {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    {activeProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[9px] font-black text-slate-500 uppercase px-1 tracking-widest">Socio Asignado</label>
-                  <select required className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-white text-xs font-black uppercase outline-none focus:border-primary" value={taskForm.collaboratorId} onChange={e => setTaskForm({...taskForm, collaboratorId: e.target.value})}>
+                  <label className="text-[9px] font-medium text-slate-500 uppercase px-1 tracking-widest">Socio Asignado</label>
+                  <select required className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-white text-xs font-normal uppercase outline-none focus:border-primary" value={taskForm.collaboratorId} onChange={e => setTaskForm({...taskForm, collaboratorId: e.target.value})}>
                     <option value="">Seleccionar...</option>
                     {usersDB.map(u => <option key={u.id} value={u.id}>{u.firstName} {u.lastName}</option>)}
                   </select>
                 </div>
               </div>
               <div className="space-y-2">
-                <label className="text-[9px] font-black text-slate-500 uppercase px-1 tracking-widest">Identificador de Tarea</label>
-                <input required className="w-full bg-black/40 border border-white/10 rounded-2xl p-5 text-white text-sm font-bold uppercase outline-none focus:border-primary" value={taskForm.title} onChange={e => setTaskForm({...taskForm, title: e.target.value})} placeholder="Ej: Diseño de Reels" />
+                <label className="text-[9px] font-medium text-slate-500 uppercase px-1 tracking-widest">Identificador de Tarea</label>
+                <input required className="w-full bg-black/40 border border-white/10 rounded-2xl p-5 text-white text-sm font-normal uppercase outline-none focus:border-primary" value={taskForm.title} onChange={e => setTaskForm({...taskForm, title: e.target.value})} placeholder="Ej: Diseño de Reels" />
               </div>
               <div className="space-y-2">
-                <label className="text-[9px] font-black text-slate-500 uppercase px-1 tracking-widest">Protocolo de Instrucción</label>
-                <textarea className="w-full bg-black/40 border border-white/10 rounded-2xl p-5 text-white text-sm h-32 outline-none focus:border-primary resize-none italic leading-relaxed" value={taskForm.description} onChange={e => setTaskForm({...taskForm, description: e.target.value})} placeholder="Detalla los requisitos maestros..." />
+                <label className="text-[9px] font-medium text-slate-500 uppercase px-1 tracking-widest">Protocolo de Instrucción</label>
+                <textarea className="w-full bg-black/40 border border-white/10 rounded-2xl p-5 text-white text-sm h-32 outline-none focus:border-primary resize-none font-normal leading-relaxed" value={taskForm.description} onChange={e => setTaskForm({...taskForm, description: e.target.value})} placeholder="Detalla los requisitos maestros..." />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="space-y-2">
@@ -426,7 +428,7 @@ const Calendar: React.FC = () => {
       )}
 
       {selectedTaskDetail && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-background-dark/95 backdrop-blur-2xl animate-in fade-in" onClick={() => { if(!isEditingDetail) setSelectedTaskDetail(null); }}>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-background-dark/95 backdrop-blur-2xl animate-in fade-in" onClick={() => { if(!isEditingDetail) setSelectedTaskDetail(null); }} style={{ fontFamily: 'Poppins, sans-serif' }}>
           <div className="max-w-2xl w-full glass-panel border border-white/10 rounded-[2rem] sm:rounded-[3rem] shadow-2xl p-6 sm:p-12 flex flex-col max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
              <div className="flex justify-between items-start mb-8 shrink-0">
                 <div className="flex items-center gap-4">
@@ -435,11 +437,11 @@ const Calendar: React.FC = () => {
                   </div>
                   <div className="min-w-0">
                     {isEditingDetail ? (
-                      <input className="bg-black/40 border border-white/10 rounded-2xl px-5 py-3 text-white font-black text-xl outline-none w-full italic" value={editForm.title || ''} onChange={e => setEditForm({...editForm, title: e.target.value})} />
+                      <input className="bg-black/40 border border-white/10 rounded-2xl px-5 py-3 text-white font-bold text-xl outline-none w-full" value={editForm.title || ''} onChange={e => setEditForm({...editForm, title: e.target.value})} />
                     ) : (
-                      <h3 className="text-xl sm:text-3xl font-black text-white truncate max-w-[200px] sm:max-w-md uppercase tracking-tighter italic">{selectedTaskDetail.title}</h3>
+                      <h3 className="text-xl sm:text-3xl font-bold text-white truncate max-w-[200px] sm:max-w-md uppercase tracking-tighter">{selectedTaskDetail.title}</h3>
                     )}
-                    <p className="text-[9px] text-primary font-black uppercase tracking-[0.3em] mt-2">{selectedTaskDetail.date} • {selectedTaskDetail.status}</p>
+                    <p className="text-[9px] text-primary font-medium uppercase tracking-[0.3em] mt-2">{selectedTaskDetail.date} • {selectedTaskDetail.status}</p>
                   </div>
                 </div>
                 <div className="flex gap-3">
@@ -457,11 +459,11 @@ const Calendar: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div className="flex items-center gap-4 p-5 bg-white/5 rounded-[2rem] border border-white/5 backdrop-blur-md">
                     <div className="w-12 h-12 rounded-2xl overflow-hidden bg-slate-900 border border-white/10 shadow-2xl">
-                       {projects.find(p => p.id === selectedTaskDetail.projectId)?.logoUrl ? <img src={projects.find(p => p.id === selectedTaskDetail.projectId)?.logoUrl} className="w-full h-full object-cover" /> : <span className="material-symbols-outlined text-slate-600">business</span>}
+                       {activeProjects.find(p => p.id === selectedTaskDetail.projectId)?.logoUrl ? <img src={activeProjects.find(p => p.id === selectedTaskDetail.projectId)?.logoUrl} className="w-full h-full object-cover" /> : <span className="material-symbols-outlined text-slate-600">business</span>}
                     </div>
                     <div>
                       <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest opacity-60">Marca</p>
-                      <p className="text-sm font-black text-white uppercase">{projects.find(p => p.id === selectedTaskDetail.projectId)?.name}</p>
+                      <p className="text-sm font-black text-white uppercase">{activeProjects.find(p => p.id === selectedTaskDetail.projectId)?.name}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-4 p-5 bg-white/5 rounded-[2rem] border border-white/5 backdrop-blur-md">
@@ -469,18 +471,18 @@ const Calendar: React.FC = () => {
                        {usersDB.find(u => u.id === selectedTaskDetail.collaboratorId)?.avatar ? <img src={usersDB.find(u => u.id === selectedTaskDetail.collaboratorId)?.avatar} className="w-full h-full object-cover" /> : <span className="material-symbols-outlined text-slate-600">person</span>}
                     </div>
                     <div>
-                      <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest opacity-60">Responsable</p>
-                      <p className="text-sm font-black text-white uppercase">{usersDB.find(u => u.id === selectedTaskDetail.collaboratorId)?.firstName}</p>
+                      <p className="text-[8px] font-medium text-slate-500 uppercase tracking-widest opacity-60">Responsable</p>
+                      <p className="text-sm font-bold text-white uppercase">{usersDB.find(u => u.id === selectedTaskDetail.collaboratorId)?.firstName}</p>
                     </div>
                   </div>
                 </div>
 
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Protocolo de Ejecución</label>
+                  <label className="text-[10px] font-medium text-slate-500 uppercase tracking-widest px-1">Protocolo de Ejecución</label>
                   {isEditingDetail ? (
-                    <textarea className="w-full bg-black/40 border border-white/10 rounded-[2rem] p-8 text-white text-sm h-40 resize-none outline-none italic leading-relaxed" value={editForm.description || ''} onChange={e => setEditForm({...editForm, description: e.target.value})} />
+                    <textarea className="w-full bg-black/40 border border-white/10 rounded-[2rem] p-8 text-white text-sm h-40 resize-none outline-none font-normal leading-relaxed" value={editForm.description ? editForm.description.replace(/\[REF:[^\]]+\]/g, '').trim() : ''} onChange={e => setEditForm({...editForm, description: e.target.value})} />
                   ) : (
-                    <div className="bg-white/[0.03] p-8 rounded-[2rem] text-slate-300 text-sm italic border border-white/5 whitespace-pre-wrap leading-relaxed shadow-inner">"{selectedTaskDetail.description || 'Sin instrucciones maestras definidas.'}"</div>
+                    <div className="bg-white/[0.03] p-8 rounded-[2rem] text-slate-300 text-sm font-normal border border-white/5 whitespace-pre-wrap leading-relaxed shadow-inner">"{selectedTaskDetail.description ? selectedTaskDetail.description.replace(/\[REF:[^\]]+\]/g, '').trim() : 'Sin instrucciones maestras definidas.'}"</div>
                   )}
                 </div>
 

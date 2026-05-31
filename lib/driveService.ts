@@ -131,7 +131,7 @@ export const uploadFileResumable = async (
   file: File, 
   folderId: string, 
   onProgress?: (progress: number) => void
-): Promise<string> => {
+): Promise<{ url: string; fileId: string; thumbnailUrl?: string }> => {
   const MASTER_FOLDER_ID = import.meta.env.VITE_GOOGLE_DRIVE_MASTER_FOLDER_ID;
   const token = await getAccessToken();
   
@@ -191,7 +191,26 @@ export const uploadFileResumable = async (
             console.error("Could not set permissions", e);
         }
 
-        resolve(`https://drive.google.com/file/d/${fileId}/view?usp=sharing`);
+        let thumbnailUrl = undefined;
+        try {
+            const metaRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=thumbnailLink`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            const meta = await metaRes.json();
+            if (meta.thumbnailLink) {
+                thumbnailUrl = meta.thumbnailLink.replace(/=s\d+$/, '=s800');
+            }
+        } catch (e) {
+            console.error("Could not fetch thumbnail", e);
+        }
+
+        resolve({
+          url: `https://drive.google.com/file/d/${fileId}/view?usp=sharing`,
+          fileId,
+          thumbnailUrl
+        });
       } else {
         reject(new Error(`Upload failed with status ${xhr.status}`));
       }

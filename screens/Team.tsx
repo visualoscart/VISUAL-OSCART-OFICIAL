@@ -14,12 +14,16 @@ const Team: React.FC = () => {
   const [selectedReceipt, setSelectedReceipt] = useState<Receipt | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [historyYear, setHistoryYear] = useState<number>(new Date().getFullYear());
   
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
   const receiptPrintRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { if (currentUser && !isEditing) setEditForm(currentUser); }, [currentUser, isEditing]);
+
+  if (!currentUser) return null;
 
   const receiptDetails = useMemo(() => {
     if (!selectedReceipt) return null;
@@ -57,8 +61,6 @@ const Team: React.FC = () => {
     };
   }, [selectedReceipt, tasks, currentUser.id]);
 
-  if (!currentUser) return null;
-
   const compressImage = (base64: string, maxWidth = 300, quality = 0.6): Promise<string> => {
     return new Promise((resolve) => {
       const img = new Image(); img.src = base64;
@@ -87,6 +89,18 @@ const Team: React.FC = () => {
   }, [myPendingTasks]);
   
   const myReceipts = useMemo(() => (receipts || []).filter(r => String(r.userId) === String(currentUser.id)), [receipts, currentUser.id]);
+  
+  const myCompletedTasksCount = useMemo(() => {
+    const currDate = new Date();
+    const currMonth = String(currDate.getMonth() + 1).padStart(2, '0');
+    const currYear = String(currDate.getFullYear());
+    return (tasks || []).filter(t => 
+      String(t.collaboratorId) === String(currentUser.id) && 
+      t.status === 'Completada' &&
+      t.date.startsWith(`${currYear}-${currMonth}`)
+    ).length;
+  }, [tasks, currentUser.id]);
+  const currentYearIncome = useMemo(() => myReceipts.filter(r => r.year === new Date().getFullYear()).reduce((sum, r) => sum + r.total, 0), [myReceipts]);
 
   const upcomingBirthdays = useMemo(() => {
     const today = new Date(); const currentMonth = today.getMonth();
@@ -123,18 +137,14 @@ const Team: React.FC = () => {
   const openTaskInCalendar = (taskId: string) => navigate('/calendar', { state: { openTaskId: taskId } });
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-transparent overflow-hidden relative font-display pattern-orbital">
+    <div className="flex-1 flex flex-col h-full bg-transparent overflow-hidden relative pattern-orbital" style={{ fontFamily: 'Poppins, sans-serif' }}>
       
       <div className="absolute -top-12 -right-12 w-[500px] h-[500px] bg-primary/5 blur-[120px] rounded-full pointer-events-none"></div>
 
       <header className="px-8 py-6 border-b border-white/5 flex items-center justify-between bg-background-dark/30 backdrop-blur-2xl shrink-0 z-10">
         <div>
-          <h2 className="text-xl font-black text-white uppercase italic tracking-tight">Mi Workspace <span className="text-primary">.</span></h2>
-          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-0.5 opacity-60">Visual Oscart Network • Identity Protocol</p>
-        </div>
-        <div className="flex gap-4">
-          <div className="px-5 py-2.5 bg-primary/5 rounded-2xl border border-primary/10 text-center"><p className="text-[8px] font-black text-primary uppercase">Pendientes</p><p className="text-lg font-black text-white leading-none mt-1">{myPendingTasks.length}</p></div>
-          <div className="px-5 py-2.5 bg-emerald-500/5 rounded-2xl border border-emerald-500/10 text-center"><p className="text-[8px] font-black text-emerald-500 uppercase">Cobros</p><p className="text-lg font-black text-white leading-none mt-1">{myReceipts.length}</p></div>
+          <h2 className="text-xl font-bold text-white uppercase tracking-tight">Mi Workspace <span className="text-primary">.</span></h2>
+          <p className="text-[10px] font-medium text-slate-500 uppercase tracking-widest mt-0.5 opacity-60">Visual Oscart Network • Identity Protocol</p>
         </div>
       </header>
 
@@ -176,16 +186,16 @@ const Team: React.FC = () => {
                   </div>
                 ) : (
                   <>
-                    <h3 className="text-2xl font-black text-white uppercase tracking-tight italic">{currentUser.firstName} {currentUser.lastName}</h3>
-                    <p className="text-primary font-black text-[10px] uppercase tracking-[0.2em] mt-3 bg-primary/5 px-6 py-2 rounded-full border border-primary/10">{currentUser.role}</p>
-                    <button onClick={() => setIsEditing(true)} className="mt-8 w-full py-4 bg-white/5 border border-white/5 rounded-2xl text-[10px] font-black uppercase text-slate-500 hover:text-white transition-all shadow-lg">Editar Perfil</button>
+                    <h3 className="text-2xl font-bold text-white uppercase tracking-tight">{currentUser.firstName} {currentUser.lastName}</h3>
+                    <p className="text-primary font-medium text-[10px] uppercase tracking-[0.2em] mt-3 bg-primary/5 px-6 py-2 rounded-full border border-primary/10">{currentUser.role}</p>
+                    <button onClick={() => setIsEditing(true)} className="mt-8 w-full py-4 bg-white/5 border border-white/5 rounded-2xl text-[10px] font-bold uppercase text-slate-500 hover:text-white transition-all shadow-lg">Editar Perfil</button>
                   </>
                 )}
               </div>
             </div>
 
             <div className="glass-panel border border-white/5 rounded-[2.5rem] p-8 space-y-6 shadow-xl">
-              <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-3">
+              <h3 className="text-[10px] font-medium text-slate-500 uppercase tracking-widest flex items-center gap-3">
                 <span className="material-symbols-outlined text-sm">cake</span>
                 Próximos Cumpleaños
               </h3>
@@ -196,9 +206,34 @@ const Team: React.FC = () => {
                       <img src={u.avatar} className="w-8 h-8 rounded-xl object-cover grayscale group-hover:grayscale-0 transition-all" />
                       <p className="text-xs font-bold text-white uppercase tracking-tight">{u.firstName} {u.lastName}</p>
                     </div>
-                    <p className="text-[9px] font-black text-primary uppercase bg-primary/5 px-3 py-1 rounded-lg border border-primary/10">{u.bdDay} {new Date(2000, u.bdMonth).toLocaleString('es-ES', { month: 'short' })}</p>
+                    <p className="text-[9px] font-bold text-primary uppercase bg-primary/5 px-3 py-1 rounded-lg border border-primary/10">{u.bdDay} {new Date(2000, u.bdMonth).toLocaleString('es-ES', { month: 'short' })}</p>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            <div className="glass-panel border border-primary/10 bg-primary/[0.02] rounded-[2.5rem] p-8 space-y-6 shadow-xl">
+              <h3 className="text-[10px] font-medium text-primary uppercase tracking-widest flex items-center gap-3">
+                <span className="material-symbols-outlined text-sm">monitoring</span>
+                Estadísticas Personales
+              </h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-primary/5 p-5 rounded-2xl border border-primary/10">
+                  <p className="text-[9px] text-primary uppercase tracking-widest font-bold mb-1">Misiones Pendientes</p>
+                  <p className="text-2xl font-bold text-white">{myPendingTasks.length}</p>
+                </div>
+                <div className="bg-background-dark/50 p-5 rounded-2xl border border-white/5">
+                  <p className="text-[9px] text-slate-500 uppercase tracking-widest font-medium mb-1">Misiones del Mes</p>
+                  <p className="text-2xl font-bold text-white">{myCompletedTasksCount}</p>
+                </div>
+                <div className="bg-background-dark/50 p-5 rounded-2xl border border-white/5">
+                  <p className="text-[9px] text-slate-500 uppercase tracking-widest font-medium mb-1">Liquidaciones</p>
+                  <p className="text-2xl font-bold text-white">{myReceipts.length}</p>
+                </div>
+                <div className="bg-emerald-500/10 p-5 rounded-2xl border border-emerald-500/20">
+                  <p className="text-[9px] text-emerald-500 uppercase tracking-widest font-bold mb-1">Ingreso del Año</p>
+                  <p className="text-2xl font-bold text-emerald-400 tracking-tighter">${currentYearIncome.toLocaleString()}</p>
+                </div>
               </div>
             </div>
           </div>
@@ -206,7 +241,7 @@ const Team: React.FC = () => {
           <div className="lg:col-span-8 space-y-10">
             {/* MISIÓN DE HOY */}
             <section className="space-y-6">
-              <h3 className="text-sm font-black text-primary uppercase italic tracking-widest flex items-center gap-3">
+              <h3 className="text-sm font-bold text-primary uppercase tracking-widest flex items-center gap-3">
                 <div className="w-1.5 h-1.5 bg-primary rounded-full animate-ping"></div>
                 Misión de Hoy
               </h3>
@@ -220,8 +255,8 @@ const Team: React.FC = () => {
                           <img src={p?.logoUrl} className="w-full h-full object-cover" />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-sm font-black text-white uppercase truncate tracking-tight">{t.title}</p>
-                          <p className="text-[8px] text-primary font-black uppercase mt-1 tracking-widest">Protocolo Activo</p>
+                          <p className="text-sm font-bold text-white uppercase truncate tracking-tight">{t.title}</p>
+                          <p className="text-[8px] text-primary font-bold uppercase mt-1 tracking-widest">Protocolo Activo</p>
                         </div>
                       </div>
                       <span className="material-symbols-outlined text-primary text-base group-hover:translate-x-1 transition-transform">arrow_forward_ios</span>
@@ -231,7 +266,7 @@ const Team: React.FC = () => {
                 {myTodayTasks.length === 0 && (
                   <div className="col-span-full py-12 text-center bg-white/[0.02] rounded-[2.5rem] border border-white/5 shadow-inner">
                     <span className="material-symbols-outlined text-slate-800 text-3xl mb-3">verified</span>
-                    <p className="text-[10px] text-slate-600 italic uppercase tracking-[0.3em] font-black">Sin misiones asignadas para hoy.</p>
+                    <p className="text-[10px] text-slate-600 uppercase tracking-[0.3em] font-medium">Sin misiones asignadas para hoy.</p>
                   </div>
                 )}
               </div>
@@ -240,8 +275,8 @@ const Team: React.FC = () => {
             {/* LISTADO DE PRIORIDADES */}
             <section className="space-y-6">
                <div className="flex items-center justify-between px-2">
-                 <h3 className="text-sm font-black text-white uppercase italic tracking-widest">Listado de Prioridades</h3>
-                 <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest bg-white/5 px-4 py-1.5 rounded-full border border-white/5">{mySortedPendingTasks.length} OPERACIONES</span>
+                 <h3 className="text-sm font-bold text-white uppercase tracking-widest">Listado de Prioridades</h3>
+                 <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest bg-white/5 px-4 py-1.5 rounded-full border border-white/5">{mySortedPendingTasks.length} OPERACIONES</span>
                </div>
                <div className="glass-panel border border-white/5 rounded-[2.5rem] overflow-hidden shadow-2xl">
                   <div className="max-h-[450px] overflow-y-auto scrollbar-hide divide-y divide-white/5">
@@ -256,7 +291,7 @@ const Team: React.FC = () => {
                                 <img src={p?.logoUrl} className="w-full h-full object-cover" />
                               </div>
                               <div className="min-w-0">
-                                <p className="text-sm font-black text-white uppercase truncate group-hover:text-primary transition-colors tracking-tight">{t.title}</p>
+                                <p className="text-sm font-bold text-white uppercase truncate group-hover:text-primary transition-colors tracking-tight">{t.title}</p>
                                 <p className="text-[9px] text-slate-500 font-bold uppercase truncate tracking-widest opacity-60 mt-0.5">{p?.name}</p>
                               </div>
                            </div>
@@ -281,22 +316,19 @@ const Team: React.FC = () => {
 
             {/* COBROS */}
             <section className="space-y-6">
-               <h3 className="text-sm font-black text-white uppercase italic tracking-widest">Historial de Cobros</h3>
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                 {myReceipts.map(r => (
-                   <div key={r.id} onClick={() => setSelectedReceipt(r)} className="glass-panel border border-white/5 p-6 rounded-[2rem] hover:border-emerald-500/30 transition-all cursor-pointer flex items-center justify-between group shadow-xl hover:shadow-emerald-500/5">
-                     <div>
-                       <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-1">{r.month} {r.year}</p>
-                       <p className="text-xs font-bold text-white uppercase tracking-tight opacity-70 group-hover:opacity-100 transition-opacity">{r.receiptNumber}</p>
-                     </div>
-                     <div className="text-right">
-                        <p className="text-2xl font-black text-white italic tracking-tighter">${r.total.toFixed(0)}</p>
-                        <p className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Desembolsado</p>
-                     </div>
+               <h3 className="text-sm font-bold text-white uppercase tracking-widest">Historial de Cobros</h3>
+               <button onClick={() => setShowHistoryModal(true)} className="w-full bg-white/5 hover:bg-white/10 border border-white/10 p-6 rounded-[2rem] transition-all flex items-center justify-between group shadow-xl">
+                 <div className="flex items-center gap-4">
+                   <div className="w-12 h-12 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-500 border border-emerald-500/20 group-hover:scale-110 transition-transform">
+                     <span className="material-symbols-outlined">request_quote</span>
                    </div>
-                 ))}
-                 {myReceipts.length === 0 && <p className="col-span-full text-[10px] text-slate-600 italic uppercase text-center py-10 opacity-40 font-black tracking-widest">No hay liquidaciones registradas en el servidor.</p>}
-               </div>
+                   <div className="text-left">
+                     <p className="text-sm font-bold text-white uppercase tracking-tight">Ver Historial Completo</p>
+                     <p className="text-[10px] font-medium text-slate-500 uppercase tracking-widest mt-1">Explora tus liquidaciones pasadas</p>
+                   </div>
+                 </div>
+                 <span className="material-symbols-outlined text-slate-500 group-hover:text-white transition-colors">arrow_forward_ios</span>
+               </button>
             </section>
           </div>
         </div>
@@ -305,57 +337,110 @@ const Team: React.FC = () => {
       {selectedReceipt && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-[#0a090c]/95 backdrop-blur-3xl animate-in fade-in" onClick={() => setSelectedReceipt(null)}>
           <div className="max-w-xl w-full flex flex-col items-center gap-6" onClick={e => e.stopPropagation()}>
-            <div ref={receiptPrintRef} className="w-full bg-white text-slate-900 rounded-[2.5rem] shadow-2xl p-12 space-y-10">
+            <div ref={receiptPrintRef} className="w-full bg-white text-slate-900 rounded-[2.5rem] shadow-2xl p-12 space-y-10" style={{ fontFamily: 'Poppins, sans-serif' }}>
                 <div className="flex justify-between items-start border-b-2 border-slate-100 pb-8">
                   <div className="flex items-center gap-4">
                     <div className="w-14 h-14 bg-slate-900 rounded-2xl flex items-center justify-center text-white shrink-0 overflow-hidden shadow-lg">
                       {studioLogo ? <img src={studioLogo} className="w-full h-full object-cover" /> : <span className="material-symbols-outlined text-3xl">shutter_speed</span>}
                     </div>
-                    <div><h1 className="text-xl font-display font-black uppercase tracking-tighter leading-none">Visual Oscart</h1><p className="text-[10px] font-black text-slate-400 uppercase mt-1 tracking-widest">Marketing Studio</p></div>
+                    <div><h1 className="text-xl font-bold uppercase tracking-tighter leading-none">Visual Oscart</h1><p className="text-[10px] font-bold text-slate-400 uppercase mt-1 tracking-widest">Marketing Studio</p></div>
                   </div>
-                  <div className="text-right"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Liquidación</p><p className="text-base font-black text-slate-900 italic tracking-tight">{selectedReceipt.receiptNumber}</p></div>
+                  <div className="text-right"><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Liquidación</p><p className="text-base font-bold text-slate-900 tracking-tight">{selectedReceipt.receiptNumber}</p></div>
                 </div>
                 <div className="space-y-8">
-                  <div><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Socio:</p><p className="text-2xl font-display text-slate-900 font-black uppercase tracking-tight">{selectedReceipt.userName}</p></div>
+                  <div><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Socio:</p><p className="text-2xl font-bold text-slate-900 uppercase tracking-tight">{selectedReceipt.userName}</p></div>
                   <div className="grid grid-cols-2 gap-4 pt-6 border-t border-slate-50">
-                    <div><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Periodo:</p><p className="text-base font-bold text-slate-800">{selectedReceipt.month} {selectedReceipt.year}</p></div>
-                    <div className="text-right"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Emisión:</p><p className="text-base font-bold text-slate-800">{selectedReceipt.date}</p></div>
+                    <div><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Periodo:</p><p className="text-base font-bold text-slate-800">{selectedReceipt.month} {selectedReceipt.year}</p></div>
+                    <div className="text-right"><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Emisión:</p><p className="text-base font-bold text-slate-800">{selectedReceipt.date}</p></div>
                   </div>
                 </div>
                 <div className="space-y-4 pt-6 border-t border-slate-50">
                   <div className="flex justify-between items-center">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Servicios Profesionales:</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Servicios Profesionales:</p>
                     <p className="text-sm font-bold text-slate-800">${(selectedReceipt.baseSalary || 0).toFixed(2)}</p>
                   </div>
                   
                   {receiptDetails && (
                     <div className="flex justify-between items-center">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tareas Realizadas:</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tareas Realizadas:</p>
                       <p className="text-sm font-bold text-slate-800">{receiptDetails.completedTasks}</p>
                     </div>
                   )}
 
                   {(selectedReceipt.ninjaBonus || 0) > 0 && (
                     <div className="flex justify-between items-center">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Bono Ninja:</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Bono Ninja:</p>
                       <p className="text-sm font-bold text-emerald-600">+${(selectedReceipt.ninjaBonus || 0).toFixed(2)}</p>
                     </div>
                   )}
                   {(selectedReceipt.masterBonus || 0) > 0 && (
                     <div className="flex justify-between items-center">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Bono Master:</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Bono Master:</p>
                       <p className="text-sm font-bold text-emerald-600">+${(selectedReceipt.masterBonus || 0).toFixed(2)}</p>
                     </div>
                   )}
                 </div>
                 <div className="bg-slate-900 p-10 rounded-[2.5rem] flex justify-between items-center text-white shadow-2xl">
-                  <p className="text-xs font-black uppercase tracking-[0.2em] opacity-60">Total Neto:</p>
-                  <p className="text-5xl font-display font-black italic tracking-tighter">${(selectedReceipt.total || 0).toFixed(2)}</p>
+                  <p className="text-xs font-bold uppercase tracking-[0.2em] opacity-60">Total Neto:</p>
+                  <p className="text-5xl font-bold tracking-tighter">${(selectedReceipt.total || 0).toFixed(2)}</p>
                 </div>
             </div>
             <div className="flex gap-4 w-full">
-              <button onClick={() => setSelectedReceipt(null)} className="flex-1 py-5 bg-white/5 text-slate-500 text-xs font-black uppercase rounded-2xl border border-white/10 hover:text-white transition-all">Cerrar</button>
-              <button onClick={() => { setIsDownloading(true); html2pdf().set({ margin: 0.5, filename: `VO_Recibo_${selectedReceipt.receiptNumber}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 3, useCORS: true }, jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' } }).from(receiptPrintRef.current).save().then(() => setIsDownloading(false)); }} className="flex-1 py-5 bg-primary text-white text-xs font-black uppercase rounded-2xl shadow-2xl hover:brightness-110 active:scale-95 transition-all">Descargar PDF</button>
+              <button onClick={() => setSelectedReceipt(null)} className="flex-1 py-5 bg-white/5 text-slate-500 text-xs font-bold uppercase rounded-2xl border border-white/10 hover:text-white transition-all">Cerrar</button>
+              <button onClick={() => { setIsDownloading(true); html2pdf().set({ margin: 0.5, filename: `VO_Recibo_${selectedReceipt.receiptNumber}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 3, useCORS: true }, jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' } }).from(receiptPrintRef.current).save().then(() => setIsDownloading(false)); }} className="flex-1 py-5 bg-primary text-white text-xs font-bold uppercase rounded-2xl shadow-2xl hover:brightness-110 active:scale-95 transition-all">Descargar PDF</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showHistoryModal && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 sm:p-6 bg-[#0a090c]/90 backdrop-blur-2xl animate-in fade-in" onClick={() => setShowHistoryModal(false)}>
+          <div className="max-w-3xl w-full max-h-[90vh] flex flex-col glass-panel border border-white/10 rounded-[2.5rem] shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="p-6 sm:p-8 border-b border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-xl font-bold text-white uppercase tracking-tight">Historial de Cobros</h3>
+                <p className="text-[10px] font-medium text-slate-500 uppercase tracking-widest mt-1">Liquidaciones recibidas por año</p>
+              </div>
+              <div className="flex gap-2 bg-black/40 p-1.5 rounded-xl border border-white/5">
+                {[new Date().getFullYear() - 1, new Date().getFullYear(), new Date().getFullYear() + 1].map(year => (
+                  <button 
+                    key={year}
+                    onClick={() => setHistoryYear(year)}
+                    className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${historyYear === year ? 'bg-primary text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}
+                  >
+                    {year}
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-6 sm:p-8 scrollbar-hide space-y-4">
+              {myReceipts.filter(r => r.year === historyYear).length > 0 ? (
+                myReceipts.filter(r => r.year === historyYear).map(r => (
+                  <div key={r.id} onClick={() => { setShowHistoryModal(false); setSelectedReceipt(r); }} className="glass-panel border border-white/5 p-6 rounded-[2rem] hover:border-emerald-500/30 transition-all cursor-pointer flex items-center justify-between group shadow-xl hover:shadow-emerald-500/5">
+                    <div>
+                      <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest mb-1">{r.month} {r.year}</p>
+                      <p className="text-xs font-bold text-white uppercase tracking-tight opacity-70 group-hover:opacity-100 transition-opacity">{r.receiptNumber}</p>
+                    </div>
+                    <div className="text-right flex items-center gap-6">
+                       <div>
+                         <p className="text-2xl font-bold text-white tracking-tighter">${r.total.toFixed(0)}</p>
+                         <p className="text-[8px] font-bold text-slate-600 uppercase tracking-widest">Desembolsado</p>
+                       </div>
+                       <span className="material-symbols-outlined text-slate-500 group-hover:text-emerald-500 transition-colors">receipt_long</span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="py-20 flex flex-col items-center justify-center text-center opacity-50">
+                  <span className="material-symbols-outlined text-6xl text-slate-700 mb-4">search_off</span>
+                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">No hay cobros en {historyYear}</p>
+                </div>
+              )}
+            </div>
+            
+            <div className="p-6 border-t border-white/5 bg-background-dark/50">
+              <button onClick={() => setShowHistoryModal(false)} className="w-full py-4 bg-white/5 text-slate-400 text-xs font-bold uppercase rounded-2xl border border-white/10 hover:text-white transition-all">Cerrar Historial</button>
             </div>
           </div>
         </div>

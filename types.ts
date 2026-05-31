@@ -16,6 +16,8 @@ export interface MediaAsset {
   size?: string;
   description?: string;
   platform?: 'Drive' | 'Canva' | 'Dropbox' | 'Web';
+  fileId?: string;
+  previewUrl?: string;
 }
 
 export interface ChatMessage {
@@ -119,7 +121,7 @@ export interface Project {
   niche: string; 
   client: string;
   date: string;
-  status: 'En Progreso' | 'Revisión' | 'Completado';
+  status: 'En Progreso' | 'Revisión' | 'Completado' | 'Inactivo';
   progress: number;
   logoUrl?: string; 
   brandManualUrl?: string; 
@@ -136,8 +138,11 @@ export interface Project {
     subtitles: TypographySetting;
     body: TypographySetting;
     brandCode?: string;
+    driveFolderId?: string;
+    inactiveAt?: string;
   };
   driveFolderId?: string;
+  brandCode?: string;
 }
 
 export interface CampaignProductionDate {
@@ -222,6 +227,7 @@ export interface PerformanceReport {
 export interface CustomerReceiptItem {
   id: string;
   description: string;
+  details?: string;
   quantity: number;
   price: number;
   total: number;
@@ -232,6 +238,7 @@ export interface ServiceCatalogItem {
   name: string;
   basePrice: number;
   currency: 'USD' | 'CRC';
+  includes?: string;
 }
 
 export interface CustomerReceipt {
@@ -246,6 +253,31 @@ export interface CustomerReceipt {
   amountPaid: number;
   balancePending: number;
   status: 'Pendiente' | 'Parcial' | 'Pagado';
+  notes?: string;
+  createdAt: string;
+}
+
+export interface CustomerQuoteItem {
+  id: string;
+  description: string;
+  details?: string;
+  quantity: number;
+  price: number;
+  total: number;
+}
+
+export interface CustomerQuote {
+  id: string;
+  clientName: string;
+  date: string;
+  quoteNumber: string;
+  items: CustomerQuoteItem[];
+  currency: 'USD' | 'CRC';
+  subtotal: number;
+  ivaPercentage?: number;
+  discountPercentage?: number;
+  discountDescription?: string;
+  total: number;
   notes?: string;
   createdAt: string;
 }

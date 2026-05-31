@@ -13,8 +13,8 @@ const Dashboard: React.FC = () => {
   const pendingTasksCount = myTasks.filter(t => t.status === 'Pendiente').length;
   
   const filteredProjects = projects.filter(p => 
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    p.client.toLowerCase().includes(searchTerm.toLowerCase())
+    (p.name || '').toLowerCase().includes((searchTerm || '').toLowerCase()) || 
+    (p.client || '').toLowerCase().includes((searchTerm || '').toLowerCase())
   ).slice(0, 5);
 
   // --- NEW METRICS CALCULATIONS ---
@@ -23,7 +23,7 @@ const Dashboard: React.FC = () => {
   const currentMonthStr = String(currentMonthNum + 1).padStart(2, '0');
   
   // Tasks Donut logic
-  const currentMonthTasks = tasks.filter(t => t.date.startsWith(`${currentYearNum}-${currentMonthStr}`));
+  const currentMonthTasks = tasks.filter(t => (t.date || '').startsWith(`${currentYearNum}-${currentMonthStr}`));
   const completedMonthTasks = currentMonthTasks.filter(t => t.status === 'Completada').length;
   const pendingMonthTasks = currentMonthTasks.filter(t => t.status === 'Pendiente').length;
   const taskData = [
@@ -37,25 +37,38 @@ const Dashboard: React.FC = () => {
   const previousMonthName = previousMonthDate.toLocaleString('es-ES', { month: 'long' }).toLowerCase();
   const previousMonthYearNum = previousMonthDate.getFullYear();
   
-  const previousPerformances = performances.filter(p => p.month.toLowerCase() === previousMonthName && p.year === previousMonthYearNum);
+  const previousPerformances = performances.filter(p => (p.month || '').toLowerCase() === previousMonthName && p.year === previousMonthYearNum);
   
-  let totalReach = 0;
+  let totalEngagement = 0;
   let totalInteractions = 0;
   let totalNewFollowers = 0;
   
   previousPerformances.forEach(p => {
-    p.metrics.forEach(m => {
-      totalReach += (m.reach || 0);
+    (p.metrics || []).forEach(m => {
+      totalEngagement += (m.engagement || m.interactions || 0);
       totalInteractions += (m.interactions || 0);
       totalNewFollowers += (m.followers || 0);
     });
   });
 
   const performanceData = [
-    { name: 'Alcance', value: totalReach },
+    { name: 'Engagement', value: totalEngagement },
     { name: 'Interacc.', value: totalInteractions },
     { name: 'Seguidores', value: totalNewFollowers }
   ];
+
+  // Reach per Brand (Active Brands)
+  const activeProjects = projects.filter(p => p.status !== 'Inactivo');
+  const brandReachData = activeProjects.map(p => {
+    const pPerformances = previousPerformances.filter(perf => perf.projectId === p.id);
+    let brandReach = 0;
+    pPerformances.forEach(perf => {
+      (perf.metrics || []).forEach(m => brandReach += (m.reach || 0));
+    });
+    return { name: p.name || 'Desconocido', reach: brandReach || 0 };
+  });
+
+  const totalGlobalReach = brandReachData.reduce((sum, b) => sum + (b.reach || 0), 0) || 0;
   // --------------------------------
 
   return (
@@ -65,29 +78,12 @@ const Dashboard: React.FC = () => {
       <div className="absolute -top-24 -right-24 w-[500px] h-[500px] bg-primary/3 blur-[120px] rounded-full pointer-events-none"></div>
       <div className="absolute top-1/2 -left-24 w-[350px] h-[350px] bg-primary/3 blur-[100px] rounded-full pointer-events-none"></div>
 
-      <header className="h-20 px-6 sm:px-8 flex items-center justify-between border-b border-white/5 bg-background-dark/30 backdrop-blur-2xl shrink-0 z-10">
+      <header className="h-20 px-6 sm:px-8 flex items-center justify-between border-b border-white/5 bg-background-dark/30 backdrop-blur-2xl shrink-0 z-10" style={{ fontFamily: 'Poppins, sans-serif' }}>
         <div>
-          <h2 className="text-xl font-black text-white tracking-tighter">Hola, {currentUser?.firstName || 'Socio'} <span className="text-primary">.</span></h2>
-          <p className="text-slate-600 text-[7px] font-black uppercase tracking-[0.3em] mt-0.5 opacity-60">Centro de Operaciones Digitales</p>
+          <h2 className="text-2xl font-bold text-white tracking-tight uppercase">Hola, {currentUser?.firstName || 'Socio'} <span className="text-primary">.</span></h2>
+          <p className="text-slate-500 text-[10px] font-medium uppercase tracking-[0.2em] mt-1.5 opacity-60">Centro de Operaciones Digitales</p>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="relative w-56 hidden lg:block">
-            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-700 text-xs">search</span>
-            <input 
-              className="w-full pl-9 pr-3 py-2 bg-white/3 border border-white/5 rounded-xl text-[10px] text-white outline-none focus:border-primary/30 transition-all font-bold" 
-              placeholder="Buscar marca..." 
-              value={searchTerm} 
-              onChange={(e) => setSearchTerm(e.target.value)} 
-            />
-          </div>
-          <button 
-            onClick={() => navigate('/validation')} 
-            className="btn-premium text-white px-6 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
-          >
-            <span className="material-symbols-outlined text-xs">add_circle</span>
-            Nueva Marca
-          </button>
-        </div>
+
       </header>
 
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-10 scrollbar-hide relative z-10">
@@ -111,7 +107,7 @@ const Dashboard: React.FC = () => {
               <div className="glass-panel p-6 sm:p-8 rounded-[2rem] border border-white/5 shadow-xl flex items-center justify-between group hover:border-primary/30 transition-all flex-1 h-full">
                 <div>
                   <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Marcas Activas</p>
-                  <h3 className="text-4xl font-black text-white mt-2 leading-none">{projects.length}</h3>
+                  <h3 className="text-4xl font-black text-white mt-2 leading-none">{activeProjects.length}</h3>
                 </div>
                 <div className="w-14 h-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center group-hover:scale-110 transition-transform border border-primary/20 shadow-lg">
                   <span className="material-symbols-outlined text-3xl">folder_special</span>
@@ -191,7 +187,7 @@ const Dashboard: React.FC = () => {
                   </ResponsiveContainer>
                </div>
                
-               {totalReach === 0 && totalInteractions === 0 && (
+               {totalEngagement === 0 && totalInteractions === 0 && (
                  <div className="absolute inset-0 flex items-center justify-center bg-background-dark/80 backdrop-blur-sm z-20">
                    <div className="text-center px-6">
                      <span className="material-symbols-outlined text-3xl text-slate-600 mb-2">monitoring</span>
@@ -202,85 +198,50 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Listado de Movimientos Minimalista */}
-          <div className="glass-panel rounded-[2rem] border border-white/5 overflow-hidden animate-in fade-in duration-1000">
-            <div className="px-6 py-6 sm:px-8 flex items-center justify-between border-b border-white/5 bg-white/[0.01]">
-              <div>
-                <h3 className="text-base font-black text-white uppercase tracking-tighter">Nuestros Clientes</h3>
-                <p className="text-[6px] font-black text-slate-700 uppercase tracking-widest mt-0.5">Sincronización global en tiempo real</p>
-              </div>
-              <button 
-                onClick={() => navigate('/projects')} 
-                className="px-4 py-2 bg-white/3 hover:bg-white/5 rounded-lg text-[8px] font-black text-slate-500 hover:text-white uppercase tracking-widest border border-white/5 transition-all"
-              >
-                Ver Catálogo
-              </button>
-            </div>
-            
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead className="bg-white/3 text-[7px] uppercase text-slate-700 font-black tracking-[0.2em]">
-                  <tr className="border-b border-white/5">
-                    <th className="px-8 py-4">Marca</th>
-                    <th className="px-8 py-4 text-center">Nicho</th>
-                    <th className="px-8 py-4 text-center">Estatus</th>
-                    <th className="px-8 py-4 text-right">Registro</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5">
-                  {filteredProjects.map((row) => (
-                    <tr 
-                      key={row.id} 
-                      onClick={() => navigate(`/projects/${row.id}`)} 
-                      className="hover:bg-white/[0.01] transition-all cursor-pointer group"
-                    >
-                      <td className="px-8 py-5">
-                        <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-xl overflow-hidden bg-slate-900 border border-white/10 group-hover:scale-105 transition-transform shrink-0 shadow-lg">
-                            <img 
-                              src={row.logoUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${row.name}`} 
-                              className="w-full h-full object-cover transition-all" 
-                              alt={row.name}
-                            />
-                          </div>
-                          <div>
-                            <span className="text-xs font-black text-white uppercase tracking-tight block">{row.name}</span>
-                            <span className="text-[7px] text-slate-700 font-bold uppercase tracking-widest">{row.client}</span>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-8 py-5 text-center">
-                        <span className="text-[9px] text-slate-500 font-black uppercase tracking-widest bg-white/3 px-3 py-1.5 rounded-lg border border-white/5">
-                          {row.niche}
-                        </span>
-                      </td>
-                      <td className="px-8 py-5 text-center">
-                        <span className={`text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-lg border ${
-                          row.status === 'Completado' 
-                            ? 'bg-emerald-500/5 text-emerald-500 border-emerald-500/10' 
-                            : 'bg-primary/5 text-primary border-primary/10'
-                        }`}>
-                          {row.status}
-                        </span>
-                      </td>
-                      <td className="px-8 py-5 text-right text-[9px] text-slate-700 font-black tracking-widest opacity-60">{row.date}</td>
-                    </tr>
-                  ))}
-                  {filteredProjects.length === 0 && (
-                    <tr>
-                      <td colSpan={4} className="py-20 text-center opacity-30">
-                        <span className="material-symbols-outlined text-4xl mb-2">cloud_off</span>
-                        <p className="font-black text-[8px] uppercase tracking-widest">Base de datos vacía</p>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-            
-            <div className="p-4 bg-white/[0.005] border-t border-white/5 text-center">
-              <p className="text-[6px] font-black text-slate-800 uppercase tracking-[0.5em]">Visual Studio Flow Engine v3.5.2 • Minimalistic Protocol</p>
-            </div>
+          {/* Global Reach Section */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in slide-in-from-bottom-6 duration-700" style={{ fontFamily: 'Poppins, sans-serif' }}>
+             {/* Total Reach Counter */}
+             <div className="glass-panel p-8 rounded-[2rem] border border-white/5 shadow-xl flex flex-col items-center justify-center text-center group hover:border-primary/30 transition-all">
+                <div className="w-20 h-20 bg-primary/10 text-primary rounded-[2rem] flex items-center justify-center mb-6 border border-primary/20 shadow-2xl group-hover:scale-110 transition-transform">
+                   <span className="material-symbols-outlined text-4xl">public</span>
+                </div>
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Alcance Global ({previousMonthName.charAt(0).toUpperCase() + previousMonthName.slice(1)})</p>
+                <h3 className="text-5xl font-bold text-white tracking-tighter">{totalGlobalReach.toLocaleString()}</h3>
+                <p className="text-[9px] font-medium text-slate-500 uppercase tracking-widest mt-4 opacity-60">De todas las marcas activas</p>
+             </div>
+
+             {/* Reach by Brand Bar Chart */}
+             <div className="lg:col-span-2 glass-panel p-6 sm:p-8 rounded-[2rem] border border-white/5 shadow-xl flex flex-col relative overflow-hidden group hover:border-white/10 transition-all">
+                <h3 className="text-sm font-bold text-white uppercase tracking-widest z-10">Alcance por Marca ({previousMonthName.charAt(0).toUpperCase() + previousMonthName.slice(1)})</h3>
+                <p className="text-[8px] font-medium text-slate-500 uppercase tracking-[0.2em] mb-4 z-10">Marcas Activas</p>
+                
+                <div className="flex-1 min-h-[220px] w-full z-10 mt-2">
+                   <ResponsiveContainer width="100%" height="100%">
+                     <BarChart data={brandReachData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700, textAnchor: 'middle' }} />
+                        <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 10, fontWeight: 700 }} tickFormatter={(val: any) => val >= 1000 ? `${(val/1000).toFixed(1)}k` : val} />
+                        <Tooltip 
+                          cursor={{ fill: 'rgba(255,255,255,0.02)' }}
+                          contentStyle={{ backgroundColor: 'rgba(10, 9, 12, 0.95)', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '16px', backdropFilter: 'blur(10px)' }}
+                          itemStyle={{ color: '#fff', fontSize: '13px', fontWeight: 'bold', textTransform: 'uppercase', fontFamily: 'Poppins' }}
+                        />
+                        <Bar dataKey="reach" fill="#8c2bee" radius={[8, 8, 0, 0]} maxBarSize={50}>
+                           {brandReachData.map((entry, index) => (
+                             <Cell key={`cell-${index}`} fill={['#8c2bee', '#f97316', '#3b82f6', '#10b981', '#ec4899'][index % 5]} />
+                           ))}
+                        </Bar>
+                     </BarChart>
+                   </ResponsiveContainer>
+                </div>
+                {brandReachData.length === 0 && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-background-dark/80 backdrop-blur-sm z-20">
+                    <div className="text-center px-6">
+                      <span className="material-symbols-outlined text-3xl text-slate-600 mb-2">monitoring</span>
+                      <p className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.2em]">Esperando métricas de alcance.</p>
+                    </div>
+                  </div>
+                )}
+             </div>
           </div>
         </div>
       </div>
