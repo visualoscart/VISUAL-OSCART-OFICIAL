@@ -56,7 +56,7 @@ const Strategy: React.FC = () => {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95 }}
               transition={{ delay: idx * 0.05 }}
-              className="glass-panel rounded-[2.5rem] p-8 flex flex-col gap-8 group hover:border-primary/30 transition-all duration-500 hover:shadow-[0_20px_50px_rgba(0,0,0,0.5)] hover:-translate-y-2 relative overflow-hidden"
+              className="glass-panel rounded-2xl sm:rounded-3xl p-8 flex flex-col gap-8 group hover:border-primary/30 transition-all duration-500 hover:shadow-[0_20px_50px_rgba(0,0,0,0.5)] hover:-translate-y-2 relative overflow-hidden"
             >
               <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
               

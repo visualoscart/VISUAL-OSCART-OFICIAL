@@ -104,7 +104,7 @@ const Projects: React.FC = () => {
                 <div 
                   key={project.id}
                   onClick={() => navigate(`/projects/${project.id}`)}
-                  className="glass-panel rounded-[2.5rem] p-8 border border-white/5 hover:border-primary/50 transition-all duration-500 group cursor-pointer flex flex-col h-full relative overflow-hidden shadow-xl hover:shadow-2xl hover:shadow-primary/20 hover:-translate-y-2 animate-in slide-in-from-bottom-8 fade-in"
+                  className="glass-panel rounded-2xl sm:rounded-3xl p-8 border border-white/5 hover:border-primary/50 transition-all duration-500 group cursor-pointer flex flex-col h-full relative overflow-hidden shadow-xl hover:shadow-2xl hover:shadow-primary/20 hover:-translate-y-2 animate-in slide-in-from-bottom-8 fade-in"
                   style={{ animationDelay: `${idx * 100}ms`, animationFillMode: 'both' }}
                 >
                   <div className="absolute inset-0 bg-gradient-to-br from-primary/0 via-primary/0 to-primary/0 group-hover:from-primary/10 group-hover:to-transparent transition-colors duration-500 pointer-events-none" />
