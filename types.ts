@@ -281,3 +281,27 @@ export interface CustomerQuote {
   notes?: string;
   createdAt: string;
 }
+
+export type MeetingCategory =
+  | 'Gestión de Redes Sociales'
+  | 'Diseño de Marca'
+  | 'Diseño Web'
+  | 'Animación Digital'
+  | 'Otro';
+
+export type MeetingDuration = 30 | 60 | 90 | 120;
+
+export interface Meeting {
+  id: string;
+  title: string;
+  projectId?: string;
+  date: string;           // YYYY-MM-DD
+  time: string;           // HH:mm
+  duration: MeetingDuration;
+  category: MeetingCategory;
+  notes?: string;
+  hasMeet: boolean;
+  meetLink?: string;
+  googleEventId?: string;
+  createdAt: string;
+}

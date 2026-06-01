@@ -223,7 +223,7 @@ const Calendar: React.FC = () => {
       <div className="absolute -top-24 -right-24 w-[600px] h-[600px] bg-primary/5 blur-[120px] rounded-full pointer-events-none"></div>
       <div className="absolute top-1/2 -left-24 w-[400px] h-[400px] bg-primary/5 blur-[100px] rounded-full pointer-events-none"></div>
 
-      <header className="px-4 sm:px-8 py-4 sm:py-6 border-b border-white/5 flex flex-col gap-4 sm:gap-6 shrink-0 sticky top-0 z-40 bg-background-dark/30 backdrop-blur-2xl">
+      <header className="px-4 sm:px-8 py-4 sm:py-6 border-b border-white/5 shrink-0 sticky top-0 z-40 bg-background-dark/30 backdrop-blur-2xl">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3 sm:gap-4">
             <div className="bg-primary/20 p-2 rounded-xl text-primary border border-primary/20 shadow-lg">
@@ -244,105 +244,110 @@ const Calendar: React.FC = () => {
             <button onClick={() => setShowModal(true)} className="btn-premium flex-1 sm:flex-none px-4 sm:px-6 py-2.5 text-white font-black text-[9px] sm:text-[10px] uppercase rounded-xl shadow-2xl transition-all active:scale-95">Nueva Tarea</button>
           </div>
         </div>
-
-        {/* Brand Filters */}
-        <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-0.5">
-          <button onClick={() => setSelectedBrandId('all')} className={`px-4 sm:px-5 py-2.5 rounded-xl text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap border ${selectedBrandId === 'all' ? 'bg-primary border-primary text-white shadow-lg' : 'bg-black/40 border-white/5 text-slate-500 hover:text-white'}`}>Flujo Global</button>
-          <div className="w-px h-6 bg-white/10 mx-1 shrink-0"></div>
-          {activeProjects.map(p => (
-            <button key={p.id} onClick={() => setSelectedBrandId(p.id)} className={`flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 rounded-xl text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap border ${selectedBrandId === p.id ? 'bg-accent-orange border-accent-orange text-white shadow-lg' : 'bg-black/40 border-white/5 text-slate-500 hover:text-white'}`}>
-              {p.logoUrl && <img src={p.logoUrl} className="w-3 h-3 sm:w-4 sm:h-4 rounded-full object-cover border border-white/20" />}
-              {p.name}
-            </button>
-          ))}
-        </div>
       </header>
 
-      <div className="p-2 sm:p-8 pb-24 relative z-10">
-        <div className="grid grid-cols-7 gap-px bg-white/5 border border-white/5 rounded-[1.2rem] sm:rounded-[3rem] overflow-hidden shadow-2xl backdrop-blur-xl bg-black/40">
-          {['D', 'L', 'M', 'M', 'J', 'V', 'S'].map((d, i) => (
-            <div key={i} className="bg-black/40 p-2 sm:p-4 text-center text-[7px] sm:text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] border-b border-white/5">
-              {d}
-            </div>
-          ))}
-          
-          {Array.from({ length: firstDayOfMonth }).map((_, i) => (
-            <div key={i} className="bg-black/10 min-h-[100px] sm:min-h-[160px]"></div>
-          ))}
-          
-          {Array.from({ length: daysInMonth }).map((_, i) => {
-            const dayNum = i + 1; 
-            const month = String(currentMonth + 1).padStart(2, '0');
-            const dayStr = String(dayNum).padStart(2, '0');
-            const dateStr = `${currentYear}-${month}-${dayStr}`;
-            const dayTasks = getTasksForDay(dayNum); 
-            const isToday = dayNum === today.getDate() && currentMonth === today.getMonth() && currentYear === today.getFullYear();
-            
-            const hasMore = dayTasks.length > 3;
+      <div className="p-6 sm:p-10 pb-24 relative z-10">
+        <div className="max-w-7xl mx-auto space-y-6">
+          {/* Brand Filters */}
+          <div className="glass-panel rounded-[1.2rem] sm:rounded-[1.8rem] border border-white/5 p-3 sm:p-4 flex items-center gap-2.5 overflow-x-auto scrollbar-hide shadow-2xl">
+            <button onClick={() => setSelectedBrandId('all')} className={`px-4 sm:px-5 py-2.5 rounded-xl text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap border ${selectedBrandId === 'all' ? 'bg-primary border-primary text-white shadow-lg' : 'bg-black/60 border-white/5 text-slate-400 hover:text-white'}`}>Flujo Global</button>
+            <div className="w-px h-6 bg-white/10 mx-1 shrink-0"></div>
+            {activeProjects.map(p => (
+              <button key={p.id} onClick={() => setSelectedBrandId(p.id)} className={`flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 rounded-xl text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap border ${selectedBrandId === p.id ? 'bg-accent-orange border-accent-orange text-white shadow-lg' : 'bg-black/60 border-white/5 text-slate-400 hover:text-white'}`}>
+                {p.logoUrl && <img src={p.logoUrl} className="w-3 h-3 sm:w-4 sm:h-4 rounded-full object-cover border border-white/20" />}
+                {p.name}
+              </button>
+            ))}
+          </div>
 
-            return (
-              <div 
-                key={dayNum} 
-                onDragOver={(e) => e.preventDefault()} 
-                onDrop={(e) => onDrop(e, dateStr)} 
-                className="bg-black/20 min-h-[100px] sm:min-h-[160px] p-1.5 sm:p-4 relative group transition-all border-r border-b border-white/5 hover:bg-primary/5"
-              >
-                <div className="flex justify-between items-start mb-1 sm:mb-2 relative z-10">
-                  <span className={`text-[8px] sm:text-[10px] font-black px-1 sm:px-2 py-0.5 sm:py-1 rounded-lg ${isToday ? 'bg-primary text-white shadow-lg shadow-primary/30' : 'text-slate-600'}`}>{dayNum}</span>
-                  {dayTasks.length > 3 && (
-                    <span className="text-[6px] sm:text-[8px] font-black text-accent-orange uppercase tracking-tighter bg-accent-orange/10 px-1 py-0.5 rounded-md">+{dayTasks.length - 3}</span>
-                  )}
-                </div>
+          <div className="glass-panel rounded-[1.5rem] sm:rounded-[2.5rem] border border-white/5 overflow-hidden shadow-2xl">
 
-                <div 
-                  id={`day-tasks-${dayNum}`}
-                  className={`mt-1 sm:mt-2 space-y-1 sm:space-y-1.5 h-[65px] sm:h-[105px] overflow-y-auto scrollbar-hide relative z-0`}
+          {/* Días de la semana */}
+          <div className="grid grid-cols-7 bg-black/40">
+            {['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'].map((d, i) => (
+              <div key={i} className="p-2 sm:p-4 text-center text-[7px] sm:text-[9px] font-black text-slate-500 uppercase tracking-[0.15em] sm:tracking-[0.2em] border-b border-white/5">{d}</div>
+            ))}
+          </div>
+
+          {/* Grid de días */}
+          <div className="grid grid-cols-7 gap-px bg-white/5">
+            {Array.from({ length: firstDayOfMonth }).map((_, i) => (
+              <div key={i} className="bg-black/30 min-h-[130px]" />
+            ))}
+
+            {Array.from({ length: daysInMonth }).map((_, i) => {
+              const dayNum = i + 1;
+              const month = String(currentMonth + 1).padStart(2, '0');
+              const dayStr = String(dayNum).padStart(2, '0');
+              const dateStr = `${currentYear}-${month}-${dayStr}`;
+              const dayTasks = getTasksForDay(dayNum);
+              const isToday = dayNum === today.getDate() && currentMonth === today.getMonth() && currentYear === today.getFullYear();
+              const hasMore = dayTasks.length > 3;
+
+              return (
+                <div
+                  key={dayNum}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => onDrop(e, dateStr)}
+                  className="bg-black/20 min-h-[130px] p-2 relative group transition-all border-r border-b border-white/5 hover:bg-primary/5"
                 >
-                  {dayTasks.map(t => { 
-                    const p = activeProjects.find(x => x.id === t.projectId); 
-                    const u = usersDB.find(x => x.id === t.collaboratorId);
-                    const isDone = t.status === 'Completada';
-                    return (
-                      <div 
-                        key={t.id} 
-                        draggable="true" 
-                        onDragStart={(e) => onDragStart(e, t.id)} 
-                        onClick={() => { setSelectedTaskDetail(t); setIsEditingDetail(false); setEditForm(t); setConfirmDeleteStep(false); }} 
-                        className={`p-1 rounded-lg sm:rounded-xl transition-all border flex items-center justify-center sm:justify-start gap-1 sm:gap-2 cursor-pointer ${
-                          isDone 
-                          ? 'bg-primary/5 border-primary/10 opacity-30 grayscale-[0.4] hover:opacity-70 transition-opacity' 
-                          : 'bg-black/60 border-white/5 hover:border-primary shadow-2xl backdrop-blur-md'
-                        }`}
-                      >
-                        <div className="flex -space-x-1 sm:-space-x-1.5 shrink-0 scale-90 sm:scale-100">
-                          {p?.logoUrl && <img src={p.logoUrl} className="w-4 h-4 sm:w-5 sm:h-5 rounded-full object-cover border border-white/20 shadow-sm" />}
-                          {u?.avatar && <img src={u.avatar} className="w-4 h-4 sm:w-5 sm:h-5 rounded-full object-cover border border-white/20 shadow-sm" />}
-                        </div>
-                        <span className={`hidden sm:inline truncate text-[9px] font-bold uppercase tracking-tight ${isDone ? 'text-primary/60' : 'text-white/80'}`}>
-                          {t.title}
-                        </span>
-                      </div>
-                    ); 
-                  })}
-                </div>
-                
-                {/* Botón de Scroll Minimalista Reubicado para no tapar */}
-                {hasMore && (
-                    <button 
-                        onClick={() => scrollDayDown(dayNum)}
-                        className="absolute bottom-1.5 left-1.5 text-white/10 hover:text-primary transition-colors z-20"
-                        title="Ver más tareas"
-                    >
-                        <span className="material-symbols-outlined text-[10px]">keyboard_double_arrow_down</span>
-                    </button>
-                )}
+                  <div className="flex justify-between items-start mb-1 sm:mb-2 relative z-10">
+                    <span className={`text-[8px] sm:text-[10px] font-black px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-lg ${isToday ? 'bg-primary text-white shadow-lg shadow-primary/30' : 'text-slate-600'}`}>{dayNum}</span>
+                    {dayTasks.length > 3 && (
+                      <span className="text-[6px] sm:text-[8px] font-black text-accent-orange uppercase tracking-tighter bg-accent-orange/10 px-1 py-0.5 rounded-md">+{dayTasks.length - 3}</span>
+                    )}
+                  </div>
 
-                <button onClick={() => { setTaskForm({...taskForm, date: dateStr}); setShowModal(true); }} className="absolute bottom-1 right-1 sm:bottom-3 sm:right-3 w-5 h-5 sm:w-8 sm:h-8 bg-primary/10 text-primary rounded-lg sm:rounded-xl flex items-center justify-center opacity-0 lg:group-hover:opacity-100 transition-all hover:bg-primary hover:text-white shadow-2xl border border-primary/20 backdrop-blur-md">
-                  <span className="material-symbols-outlined text-[10px] sm:text-xs">add</span>
-                </button>
-              </div>
-            );
-          })}
+                  <div
+                    id={`day-tasks-${dayNum}`}
+                    className="mt-1.5 space-y-1 h-[85px] overflow-y-auto scrollbar-hide relative z-0"
+                  >
+                    {dayTasks.map(t => {
+                      const p = activeProjects.find(x => x.id === t.projectId);
+                      const u = usersDB.find(x => x.id === t.collaboratorId);
+                      const isDone = t.status === 'Completada';
+                      return (
+                        <div
+                          key={t.id}
+                          draggable="true"
+                          onDragStart={(e) => onDragStart(e, t.id)}
+                          onClick={() => { setSelectedTaskDetail(t); setIsEditingDetail(false); setEditForm(t); setConfirmDeleteStep(false); }}
+                          className={`p-1 sm:p-1.5 rounded-lg sm:rounded-xl transition-all border flex items-center gap-1 sm:gap-2 cursor-pointer ${
+                            isDone
+                            ? 'bg-primary/5 border-primary/10 opacity-30 grayscale-[0.4] hover:opacity-70 transition-opacity'
+                            : 'bg-black/60 border-white/5 hover:border-primary shadow-2xl backdrop-blur-md'
+                          }`}
+                        >
+                          <div className="flex -space-x-1 sm:-space-x-1.5 shrink-0">
+                            {p?.logoUrl && <img src={p.logoUrl} className="w-4 h-4 sm:w-5 sm:h-5 rounded-full object-cover border border-white/20 shadow-sm" />}
+                            {u?.avatar && <img src={u.avatar} className="w-4 h-4 sm:w-5 sm:h-5 rounded-full object-cover border border-white/20 shadow-sm" />}
+                          </div>
+                          <span className={`hidden sm:inline truncate text-[9px] font-bold uppercase tracking-tight ${isDone ? 'text-primary/60' : 'text-white/80'}`}>
+                            {t.title}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {hasMore && (
+                    <button
+                      onClick={() => scrollDayDown(dayNum)}
+                      className="absolute bottom-1.5 left-1.5 text-white/10 hover:text-primary transition-colors z-20"
+                      title="Ver más tareas"
+                    >
+                      <span className="material-symbols-outlined text-[10px]">keyboard_double_arrow_down</span>
+                    </button>
+                  )}
+
+                  <button onClick={() => { setTaskForm({...taskForm, date: dateStr}); setShowModal(true); }} className="absolute bottom-1 right-1 sm:bottom-2 sm:right-2 w-5 h-5 sm:w-7 sm:h-7 bg-primary/10 text-primary rounded-lg sm:rounded-xl flex items-center justify-center opacity-0 lg:group-hover:opacity-100 transition-all hover:bg-primary hover:text-white shadow-2xl border border-primary/20 backdrop-blur-md">
+                    <span className="material-symbols-outlined text-[10px] sm:text-xs">add</span>
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
         </div>
       </div>
 

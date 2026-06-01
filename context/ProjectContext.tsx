@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
-import { Project, TextAsset, MediaAsset, Task, UserProfile, Receipt, ChatMessage, Expense, ExpenseTracking, Campaign, PerformanceReport, CustomerReceipt, CustomerQuote, ServiceCatalogItem, Income } from '../types';
+import { Project, TextAsset, MediaAsset, Task, UserProfile, Receipt, ChatMessage, Expense, ExpenseTracking, Campaign, PerformanceReport, CustomerReceipt, CustomerQuote, ServiceCatalogItem, Income, Meeting } from '../types';
 import { supabase } from '../lib/supabase';
 
 interface Notification {
@@ -100,6 +100,10 @@ interface ProjectContextType {
   addServiceCatalogItem: (data: Omit<ServiceCatalogItem, 'id'>) => Promise<void>;
   updateServiceCatalogItem: (id: string, data: Partial<ServiceCatalogItem>) => Promise<void>;
   deleteServiceCatalogItem: (id: string) => Promise<void>;
+  meetings: Meeting[];
+  addMeeting: (data: Omit<Meeting, 'id' | 'createdAt'>) => Promise<Meeting | null>;
+  updateMeeting: (id: string, data: Partial<Meeting>) => Promise<void>;
+  deleteMeeting: (id: string) => Promise<void>;
   messages: ChatMessage[];
   sendMessage: (content: string) => Promise<void>;
   logAiUsage: (userId: string, type: string) => void;
@@ -122,6 +126,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [customerReceipts, setCustomerReceipts] = useState<CustomerReceipt[]>([]);
   const [customerQuotes, setCustomerQuotes] = useState<CustomerQuote[]>([]);
   const [servicesCatalog, setServicesCatalog] = useState<ServiceCatalogItem[]>([]);
+  const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [baseSalaries, setBaseSalaries] = useState<Record<string, number>>({});
   const [taskRates, setTaskRates] = useState<Record<string, number>>({});
@@ -312,6 +317,9 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
           if (set.key === 'incomes_json') {
              try { setIncomes(JSON.parse(set.value)); } catch(e) { setIncomes([]); }
           }
+          if (set.key === 'meetings_json') {
+             try { setMeetings(JSON.parse(set.value)); } catch(e) { setMeetings([]); }
+          }
         });
         
         if (loadedExpenses.length > 0 && loadedTracking.length > 0) {
@@ -368,7 +376,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
 
   return (
     <ProjectContext.Provider value={{
-      projects, tasks, currentUser, usersDB, receipts, expenses, expenseTracking, incomes, campaigns, performances, customerReceipts, customerQuotes, servicesCatalog, notifications, baseSalaries, taskRates, financeSettings, studioLogo, dashboardBanner, dashboardBannerTitle, dashboardBannerSubtitle, loginBackground, loginTitle, loginSubtitle, isSyncing, toast, showToast, messages, celebrationQuote,
+      projects, tasks, currentUser, usersDB, receipts, expenses, expenseTracking, incomes, campaigns, performances, customerReceipts, customerQuotes, servicesCatalog, notifications, baseSalaries, taskRates, financeSettings, studioLogo, dashboardBanner, dashboardBannerTitle, dashboardBannerSubtitle, loginBackground, loginTitle, loginSubtitle, isSyncing, toast, showToast, messages, celebrationQuote, meetings,
       login, logout,
       addServiceCatalogItem: async (data) => {
         try {
@@ -1119,6 +1127,46 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
       },
       updateLoginBackground: async (v) => { await supabase.from('settings').upsert({key: 'loginBackground', value: v}); fetchData(true); },
       updateLoginTexts: async (t, s) => { await supabase.from('settings').upsert({key: 'loginTitle', value: t}); await supabase.from('settings').upsert({key: 'loginSubtitle', value: s}); fetchData(true); },
+      addMeeting: async (data) => {
+        try {
+          const newMeeting: Meeting = {
+            ...data,
+            id: `meet-${Date.now()}`,
+            createdAt: new Date().toISOString()
+          };
+          const nextList = [...meetings, newMeeting].sort((a, b) =>
+            `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`)
+          );
+          const { error } = await supabase.from('settings').upsert({ key: 'meetings_json', value: JSON.stringify(nextList) });
+          if (error) throw error;
+          setMeetings(nextList);
+          return newMeeting;
+        } catch (err) {
+          showToast('Error al guardar la reunión', 'error');
+          return null;
+        }
+      },
+      updateMeeting: async (id, data) => {
+        try {
+          const nextList = meetings.map(m => m.id === id ? { ...m, ...data } : m);
+          const { error } = await supabase.from('settings').upsert({ key: 'meetings_json', value: JSON.stringify(nextList) });
+          if (error) throw error;
+          setMeetings(nextList);
+        } catch (err) {
+          showToast('Error al actualizar la reunión', 'error');
+        }
+      },
+      deleteMeeting: async (id) => {
+        try {
+          const nextList = meetings.filter(m => m.id !== id);
+          const { error } = await supabase.from('settings').upsert({ key: 'meetings_json', value: JSON.stringify(nextList) });
+          if (error) throw error;
+          setMeetings(nextList);
+          showToast('Reunión eliminada');
+        } catch (err) {
+          showToast('Error al eliminar la reunión', 'error');
+        }
+      },
       sendMessage: async (content) => {
         if (!currentUser) return;
         const msg = { id: `msg-${Date.now()}`, senderId: currentUser.id, senderName: `${currentUser.firstName} ${currentUser.lastName}`, senderAvatar: currentUser.avatar, content, timestamp: new Date().toISOString() };
