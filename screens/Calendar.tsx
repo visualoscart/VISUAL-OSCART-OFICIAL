@@ -249,7 +249,7 @@ const Calendar: React.FC = () => {
       <div className="p-6 sm:p-10 pb-24 relative z-10">
         <div className="max-w-7xl mx-auto space-y-6">
           {/* Brand Filters */}
-          <div className="glass-panel rounded-[1.2rem] sm:rounded-[1.8rem] border border-white/5 p-3 sm:p-4 flex items-center gap-2.5 overflow-x-auto scrollbar-hide shadow-2xl">
+          <div className="glass-panel rounded-xl sm:rounded-2xl border border-white/5 p-3 sm:p-4 flex items-center gap-2.5 overflow-x-auto scrollbar-hide shadow-2xl">
             <button onClick={() => setSelectedBrandId('all')} className={`px-4 sm:px-5 py-2.5 rounded-xl text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap border ${selectedBrandId === 'all' ? 'bg-primary border-primary text-white shadow-lg' : 'bg-black/60 border-white/5 text-slate-400 hover:text-white'}`}>Flujo Global</button>
             <div className="w-px h-6 bg-white/10 mx-1 shrink-0"></div>
             {activeProjects.map(p => (
@@ -260,7 +260,7 @@ const Calendar: React.FC = () => {
             ))}
           </div>
 
-          <div className="glass-panel rounded-[1.5rem] sm:rounded-[2.5rem] border border-white/5 overflow-hidden shadow-2xl">
+          <div className="glass-panel rounded-2xl sm:rounded-3xl border border-white/5 overflow-hidden shadow-2xl">
 
           {/* Días de la semana */}
           <div className="grid grid-cols-7 bg-black/40">
