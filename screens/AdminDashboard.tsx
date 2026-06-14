@@ -17,7 +17,8 @@ const AdminDashboard: React.FC = () => {
     customerReceipts, addCustomerReceipt, updateCustomerReceipt, deleteCustomerReceipt,
     customerQuotes, addCustomerQuote, deleteCustomerQuote,
     servicesCatalog, addServiceCatalogItem, deleteServiceCatalogItem,
-    meetings, addMeeting, updateMeeting, deleteMeeting
+    meetings, addMeeting, updateMeeting, deleteMeeting,
+    personalTasks, addPersonalTask, updatePersonalTask, togglePersonalTask, deletePersonalTask, reorderPersonalTasks
   } = useProjects();
   
   const [passwordAuth, setPasswordAuth] = useState('');
@@ -31,7 +32,18 @@ const AdminDashboard: React.FC = () => {
   const [isManuallyAuthenticated, setIsManuallyAuthenticated] = useState(false);
   const isAuthenticated = isAuthenticatedManual || isManuallyAuthenticated;
 
-  const [activeView, setActiveView] = useState<'analytics' | 'users' | 'settings' | 'rendimiento' | 'receipts' | 'meetings'>('analytics');
+  const [activeView, setActiveView] = useState<'analytics' | 'users' | 'settings' | 'rendimiento' | 'receipts' | 'meetings' | 'agenda'>('analytics');
+
+  // --- AGENDA STATE ---
+  type AgendaSubView = 'dia' | 'semana' | 'mes';
+  const [agendaSubView, setAgendaSubView] = useState<AgendaSubView>('dia');
+  const [agendaCurrentDate, setAgendaCurrentDate] = useState<Date>(new Date());
+  const [showAgendaModal, setShowAgendaModal] = useState(false);
+  const [editingTask, setEditingTask] = useState<string | null>(null);
+  const [agendaForm, setAgendaForm] = useState({ title: '', description: '', date: '' });
+  const [deletingAgendaId, setDeletingAgendaId] = useState<string | null>(null);
+  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+  const [dragOverTaskId, setDragOverTaskId] = useState<string | null>(null);
   // --- MEETINGS STATE ---
   const [meetCurrentDate, setMeetCurrentDate] = useState(new Date());
   const [showMeetModal, setShowMeetModal] = useState(false);
@@ -824,8 +836,8 @@ const AdminDashboard: React.FC = () => {
             </div>
         </div>
         <nav className="flex bg-black/40 p-1.5 rounded-2xl border border-white/5 gap-1.5 backdrop-blur-md">
-          {[ {id:'analytics', icon:'grid_view'}, {id:'rendimiento', icon:'monitoring'}, {id:'receipts', icon:'receipt_long'}, {id:'users', icon:'group'}, {id:'settings', icon:'tune'}, {id:'meetings', icon:'video_call'} ].map(tab => (
-            <button key={tab.id} title={tab.id} onClick={() => setActiveView(tab.id as any)} className={`p-3 rounded-xl transition-all ${activeView === tab.id ? (tab.id === 'meetings' ? 'bg-orange-500 text-white shadow-xl' : 'bg-primary text-white shadow-xl') : 'text-slate-500 hover:text-white'}`}>
+          {[ {id:'analytics', icon:'grid_view'}, {id:'rendimiento', icon:'monitoring'}, {id:'receipts', icon:'receipt_long'}, {id:'users', icon:'group'}, {id:'settings', icon:'tune'}, {id:'meetings', icon:'video_call'}, {id:'agenda', icon:'edit_note'} ].map(tab => (
+            <button key={tab.id} title={tab.id} onClick={() => setActiveView(tab.id as any)} className={`p-3 rounded-xl transition-all ${activeView === tab.id ? (tab.id === 'meetings' ? 'bg-orange-500 text-white shadow-xl' : tab.id === 'agenda' ? 'bg-violet-600 text-white shadow-xl' : 'bg-primary text-white shadow-xl') : 'text-slate-500 hover:text-white'}`}>
               <span className="material-symbols-outlined text-xl">{tab.icon}</span>
             </button>
           ))}
@@ -3232,7 +3244,6 @@ const AdminDashboard: React.FC = () => {
                               </div>
                             </div>
                           )}
-
                           {/* Eliminar */}
                           <button onClick={() => handleDeleteMeeting(selectedMeeting)} disabled={isDeletingMeeting}
                             className="w-full py-4 bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500 hover:text-white font-black text-[10px] uppercase rounded-2xl transition-all active:scale-95 disabled:opacity-50">
@@ -3247,6 +3258,542 @@ const AdminDashboard: React.FC = () => {
 
             </div>
           )}
+
+          {/* =========================================================
+              AGENDA PERSONAL — Mi Diario de Quehaceres
+          ========================================================= */}
+          {activeView === 'agenda' && (() => {
+            const todayStr = new Date().toISOString().split('T')[0];
+
+            // ─── Helpers de fecha ──────────────────────────────────────
+            const fmtDate = (d: Date) => d.toISOString().split('T')[0];
+            const addDays = (d: Date, n: number) => { const r = new Date(d); r.setDate(r.getDate() + n); return r; };
+
+            // ─── Semana: lunes de la semana actual ──────────────────
+            const weekStart = (() => {
+              const d = new Date(agendaCurrentDate);
+              const day = d.getDay();
+              const diff = day === 0 ? -6 : 1 - day;
+              d.setDate(d.getDate() + diff);
+              return d;
+            })();
+            const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+
+            // ─── Datos del día actual en vista ─────────────────────────
+            const currentDateStr = fmtDate(agendaCurrentDate);
+            const tasksForDay = (dateStr: string) =>
+              personalTasks.filter(t => t.date === dateStr).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+            // ─── Mes ─────────────────────────────────────────────────────
+            const mesYear = agendaCurrentDate.getFullYear();
+            const mesMonth = agendaCurrentDate.getMonth();
+            const mesFirstDay = new Date(mesYear, mesMonth, 1).getDay();
+            const mesDaysInMonth = new Date(mesYear, mesMonth + 1, 0).getDate();
+            const mesOffset = mesFirstDay === 0 ? 6 : mesFirstDay - 1; // Lunes=0
+
+            const dayLabels = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+            const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+            // ─── Abrir modal crear ──────────────────────────────────────
+            const openCreate = (dateStr?: string) => {
+              setEditingTask(null);
+              setAgendaForm({ title: '', description: '', date: dateStr || currentDateStr });
+              if (dateStr) (window as any)._agendaDateOverride = dateStr;
+              setShowAgendaModal(true);
+            };
+
+            // ─── Abrir modal editar ─────────────────────────────────────
+            const openEdit = (task: any) => {
+              setEditingTask(task.id);
+              setAgendaForm({ title: task.title, description: task.description || '', date: task.date });
+              setShowAgendaModal(true);
+            };
+
+            // ─── Guardar (crear o editar) ───────────────────────────────
+            const handleSaveAgenda = async () => {
+              if (!agendaForm.title.trim()) { showToast('El título es obligatorio', 'error'); return; }
+              if (editingTask) {
+                const original = personalTasks.find(t => t.id === editingTask);
+                const dateChanged = original && original.date !== agendaForm.date;
+                await updatePersonalTask(editingTask, {
+                  title: agendaForm.title,
+                  description: agendaForm.description,
+                  date: agendaForm.date,
+                  ...(dateChanged ? { order: tasksForDay(agendaForm.date).length } : {})
+                });
+              } else {
+                const dateOverride = (window as any)._agendaDateOverride || currentDateStr;
+                delete (window as any)._agendaDateOverride;
+                await addPersonalTask({
+                  title: agendaForm.title,
+                  description: agendaForm.description,
+                  date: dateOverride,
+                  completed: false,
+                  order: tasksForDay(dateOverride).length,
+                });
+              }
+              setShowAgendaModal(false);
+            };
+
+            // ─── Drag & Drop handlers ───────────────────────────────────
+            const handleDragStart = (e: React.DragEvent, id: string) => {
+              setDraggedTaskId(id);
+              e.dataTransfer.effectAllowed = 'move';
+            };
+            const handleDragOver = (e: React.DragEvent, id: string) => {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = 'move';
+              if (id !== draggedTaskId) setDragOverTaskId(id);
+            };
+            const handleDragLeave = () => setDragOverTaskId(null);
+            const handleDrop = (targetId: string, dayTasks: any[]) => {
+              if (!draggedTaskId || draggedTaskId === targetId) {
+                setDraggedTaskId(null); setDragOverTaskId(null); return;
+              }
+              const arr = [...dayTasks];
+              const fromIdx = arr.findIndex(t => t.id === draggedTaskId);
+              const toIdx = arr.findIndex(t => t.id === targetId);
+              if (fromIdx === -1 || toIdx === -1) { setDraggedTaskId(null); setDragOverTaskId(null); return; }
+              const [moved] = arr.splice(fromIdx, 1);
+              arr.splice(toIdx, 0, moved);
+              reorderPersonalTasks(arr.map(t => t.id));
+              setDraggedTaskId(null);
+              setDragOverTaskId(null);
+            };
+            const handleDragEnd = () => { setDraggedTaskId(null); setDragOverTaskId(null); };
+
+            // ─── Dot indicador para vista mes ───────────────────────────
+            const dayDot = (dateStr: string) => {
+              const t = tasksForDay(dateStr);
+              if (t.length === 0) return null;
+              const allDone = t.every(x => x.completed);
+              const noneDone = t.every(x => !x.completed);
+              const color = allDone ? 'bg-violet-400' : noneDone ? 'bg-rose-400' : 'bg-amber-400';
+              return <div className={`w-1.5 h-1.5 rounded-full ${color} mx-auto mt-1`} />;
+            };
+
+            // ─── Task Card con número y drag ────────────────────────────
+            const TaskCard = ({ task, index, dayTasks }: { task: any; index: number; dayTasks: any[] }) => (
+              <div
+                draggable
+                onDragStart={(e) => handleDragStart(e, task.id)}
+                onDragOver={(e) => handleDragOver(e, task.id)}
+                onDragLeave={handleDragLeave}
+                onDrop={() => handleDrop(task.id, dayTasks)}
+                onDragEnd={handleDragEnd}
+                className={`group flex items-center gap-3 p-4 rounded-2xl border transition-all select-none
+                  ${dragOverTaskId === task.id && draggedTaskId !== task.id
+                    ? 'border-violet-500 bg-violet-500/10 scale-[1.01] shadow-lg shadow-violet-500/10'
+                    : draggedTaskId === task.id
+                      ? 'opacity-30 scale-[0.98] border-white/5'
+                      : task.completed
+                        ? 'bg-white/[0.02] border-white/5 opacity-55'
+                        : 'bg-black/30 border-white/5 hover:bg-white/[0.04] hover:border-white/10'
+                  }`}
+              >
+                {/* Número */}
+                <div className={`shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-[11px] font-black border transition-colors
+                  ${task.completed ? 'bg-violet-500/20 border-violet-500/30 text-violet-500' : 'bg-white/5 border-white/10 text-slate-400'}`}>
+                  {index + 1}
+                </div>
+
+                {/* Drag handle */}
+                <span className="material-symbols-outlined text-slate-700 group-hover:text-slate-400 transition-colors text-lg shrink-0 cursor-grab active:cursor-grabbing">
+                  drag_indicator
+                </span>
+
+                {/* Checkbox */}
+                <button
+                  onClick={(e) => { e.stopPropagation(); togglePersonalTask(task.id); }}
+                  className={`shrink-0 w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all
+                    ${task.completed ? 'bg-violet-500 border-violet-500' : 'border-white/20 hover:border-violet-500'}`}
+                >
+                  {task.completed && <span className="material-symbols-outlined text-white text-xs icon-fill">check</span>}
+                </button>
+
+                {/* Contenido */}
+                <div className="flex-1 min-w-0">
+                  <p className={`text-sm font-semibold leading-snug ${task.completed ? 'line-through text-slate-500' : 'text-white'}`}>
+                    {task.title}
+                  </p>
+                  {task.description && (
+                    <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{task.description}</p>
+                  )}
+                  {task.completed && task.completedAt && (
+                    <p className="text-[9px] text-violet-600 font-semibold uppercase tracking-widest mt-0.5">
+                      ✓ {new Date(task.completedAt).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  )}
+                </div>
+
+                {/* Acciones */}
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                  <button onClick={(e) => { e.stopPropagation(); openEdit(task); }}
+                    className="p-1.5 rounded-xl text-slate-500 hover:text-white hover:bg-white/10 transition-all">
+                    <span className="material-symbols-outlined text-sm">edit</span>
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (deletingAgendaId === task.id) {
+                        deletePersonalTask(task.id);
+                        setDeletingAgendaId(null);
+                      } else {
+                        setDeletingAgendaId(task.id);
+                        setTimeout(() => setDeletingAgendaId(null), 3000);
+                      }
+                    }}
+                    className={`p-1.5 rounded-xl transition-all ${deletingAgendaId === task.id ? 'bg-rose-500 text-white' : 'text-slate-500 hover:text-rose-400 hover:bg-rose-500/10'}`}
+                  >
+                    <span className="material-symbols-outlined text-sm">
+                      {deletingAgendaId === task.id ? 'delete_forever' : 'delete'}
+                    </span>
+                  </button>
+                </div>
+              </div>
+            );
+
+            return (
+              <div className="space-y-6 animate-in fade-in duration-500">
+
+                {/* ── HEADER ──────────────────────────────────────────── */}
+                <div className="glass-panel p-6 rounded-3xl border border-white/5 flex items-center justify-between flex-wrap gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-violet-500/20 rounded-2xl flex items-center justify-center border border-violet-500/30">
+                      <span className="material-symbols-outlined text-violet-400 text-2xl">edit_note</span>
+                    </div>
+                    <div>
+                      <h3 className="text-white font-bold text-lg tracking-tight">Mi Agenda Personal</h3>
+                      <p className="text-[10px] text-slate-500 uppercase tracking-widest font-semibold">Solo visible para ti · Director General</p>
+                    </div>
+                  </div>
+                  <div className="flex bg-black/40 p-1.5 rounded-2xl border border-white/5 gap-1.5">
+                    {([['dia', 'today', 'Día'], ['semana', 'view_week', 'Semana'], ['mes', 'calendar_month', 'Mes']] as const).map(([v, icon, label]) => (
+                      <button key={v} onClick={() => setAgendaSubView(v)}
+                        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all
+                          ${agendaSubView === v ? 'bg-violet-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}>
+                        <span className="material-symbols-outlined text-base">{icon}</span>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* ── PROGRESO DEL DÍA ────────────────────────────────── */}
+                {(() => {
+                  const todayTasks = tasksForDay(todayStr);
+                  const done = todayTasks.filter(t => t.completed).length;
+                  const total = todayTasks.length;
+                  if (total === 0) return null;
+                  const pct = Math.round((done / total) * 100);
+                  return (
+                    <div className="glass-panel p-5 rounded-2xl border border-violet-500/20 flex items-center gap-5">
+                      <div className="relative w-14 h-14 shrink-0">
+                        <svg className="w-14 h-14 -rotate-90" viewBox="0 0 56 56">
+                          <circle cx="28" cy="28" r="22" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="5" />
+                          <circle cx="28" cy="28" r="22" fill="none" stroke="#8c2bee" strokeWidth="5"
+                            strokeDasharray={`${2 * Math.PI * 22}`}
+                            strokeDashoffset={`${2 * Math.PI * 22 * (1 - pct / 100)}`}
+                            strokeLinecap="round" />
+                        </svg>
+                        <span className="absolute inset-0 flex items-center justify-center text-xs font-black text-violet-400">{pct}%</span>
+                      </div>
+                      <div>
+                        <p className="text-white font-bold">{done} de {total} completadas hoy</p>
+                        <p className="text-[10px] text-slate-500 uppercase tracking-widest font-semibold">
+                          {pct === 100 ? '🎉 ¡Día completado!' : `${total - done} pendiente${total - done !== 1 ? 's' : ''}`}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* ══════════ VISTA DÍA ══════════════════════════════════ */}
+                {agendaSubView === 'dia' && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between glass-panel px-6 py-4 rounded-2xl border border-white/5">
+                      <button onClick={() => setAgendaCurrentDate(d => addDays(d, -1))}
+                        className="p-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-all">
+                        <span className="material-symbols-outlined">chevron_left</span>
+                      </button>
+                      <div className="text-center">
+                        <p className="text-white font-bold text-lg capitalize">
+                          {agendaCurrentDate.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
+                        </p>
+                        <p className="text-[10px] text-slate-500 uppercase tracking-widest">{agendaCurrentDate.getFullYear()}</p>
+                      </div>
+                      <button onClick={() => setAgendaCurrentDate(d => addDays(d, 1))}
+                        className="p-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-all">
+                        <span className="material-symbols-outlined">chevron_right</span>
+                      </button>
+                    </div>
+
+                    {currentDateStr !== todayStr && (
+                      <button onClick={() => setAgendaCurrentDate(new Date())}
+                        className="text-[10px] text-violet-400 font-black uppercase tracking-widest hover:text-violet-300 transition-colors">
+                        ← Volver a hoy
+                      </button>
+                    )}
+
+                    {tasksForDay(currentDateStr).length > 1 && (
+                      <p className="text-[9px] text-slate-600 uppercase tracking-widest font-semibold text-center flex items-center justify-center gap-1">
+                        <span className="material-symbols-outlined text-sm">drag_indicator</span>
+                        Arrastra para reordenar
+                      </p>
+                    )}
+
+                    <div className="space-y-2">
+                      {tasksForDay(currentDateStr).length === 0 ? (
+                        <div className="text-center py-16 glass-panel rounded-2xl border border-white/5">
+                          <span className="material-symbols-outlined text-4xl text-slate-600">inbox</span>
+                          <p className="text-slate-500 mt-3 text-sm">Sin tareas para este día</p>
+                          <p className="text-slate-600 text-xs mt-1">Agrega tus quehaceres del día</p>
+                        </div>
+                      ) : (() => {
+                        const dayTasks = tasksForDay(currentDateStr);
+                        return dayTasks.map((task, i) => <TaskCard key={task.id} task={task} index={i} dayTasks={dayTasks} />);
+                      })()}
+                    </div>
+
+                    <button onClick={() => openCreate(currentDateStr)}
+                      className="w-full py-4 flex items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-white/10 text-slate-500 hover:text-violet-400 hover:border-violet-500/40 transition-all text-sm font-semibold">
+                      <span className="material-symbols-outlined">add_circle</span>
+                      Agregar tarea para este día
+                    </button>
+                  </div>
+                )}
+                {/* ══════════ VISTA SEMANA ═══════════════════════════════ */}
+                {agendaSubView === 'semana' && (
+                  <div className="space-y-4">
+                    {/* Navegador semana */}
+                    <div className="flex items-center justify-between glass-panel px-6 py-4 rounded-2xl border border-white/5">
+                      <button onClick={() => setAgendaCurrentDate(d => addDays(d, -7))}
+                        className="p-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-all">
+                        <span className="material-symbols-outlined">chevron_left</span>
+                      </button>
+                      <div className="text-center">
+                        <p className="text-white font-bold capitalize">
+                          {weekDays[0].toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })} —{' '}
+                          {weekDays[6].toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </p>
+                        <p className="text-[10px] text-slate-500 uppercase tracking-widest">Semana</p>
+                      </div>
+                      <button onClick={() => setAgendaCurrentDate(d => addDays(d, 7))}
+                        className="p-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-all">
+                        <span className="material-symbols-outlined">chevron_right</span>
+                      </button>
+                    </div>
+
+                    {/* Grid visual de 7 días */}
+                    <div className="grid grid-cols-7 gap-2">
+                      {weekDays.map((wd, i) => {
+                        const ds = fmtDate(wd);
+                        const wTasks = tasksForDay(ds);
+                        const isToday = ds === todayStr;
+                        const done = wTasks.filter(t => t.completed).length;
+                        return (
+                          <div key={ds} onClick={() => { setAgendaCurrentDate(wd); setAgendaSubView('dia'); }}
+                            className={`cursor-pointer p-3 rounded-2xl border text-center transition-all hover:border-violet-500/30 hover:bg-violet-500/5
+                              ${isToday ? 'border-violet-500/40 bg-violet-500/10' : 'border-white/5 glass-panel'}`}>
+                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">{dayLabels[i]}</p>
+                            <p className={`text-xl font-black mt-1 ${isToday ? 'text-violet-400' : 'text-white'}`}>{wd.getDate()}</p>
+                            {wTasks.length > 0 ? (
+                              <>
+                                <div className="mt-2 space-y-1">
+                                  {wTasks.slice(0, 3).map((t, ti) => (
+                                    <div key={t.id} className={`text-[8px] px-1.5 py-0.5 rounded-full font-semibold truncate
+                                      ${t.completed ? 'bg-violet-500/20 text-violet-400' : 'bg-white/10 text-slate-300'}`}>
+                                      {ti + 1}. {t.title}
+                                    </div>
+                                  ))}
+                                  {wTasks.length > 3 && <p className="text-[8px] text-slate-600">+{wTasks.length - 3} más</p>}
+                                </div>
+                                <p className="text-[9px] text-slate-500 mt-2">{done}/{wTasks.length} ✓</p>
+                              </>
+                            ) : (
+                              <p className="text-[9px] text-slate-700 mt-3">—</p>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Lista detallada por día */}
+                    <div className="space-y-6 mt-2">
+                      {weekDays.map((wd, i) => {
+                        const ds = fmtDate(wd);
+                        const wTasks = tasksForDay(ds);
+                        const isToday = ds === todayStr;
+                        if (wTasks.length === 0) return null;
+                        return (
+                          <div key={ds}>
+                            <div className="flex items-center gap-3 mb-3">
+                              <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-sm
+                                  ${isToday ? 'bg-violet-600 text-white' : 'bg-white/5 text-slate-400'}`}>{wd.getDate()}</div>
+                              <span className={`text-xs font-black uppercase tracking-widest
+                                ${isToday ? 'text-violet-400' : 'text-slate-500'}`}>
+                                {dayLabels[i]}{isToday ? ' · Hoy' : ''}
+                              </span>
+                            </div>
+                            <div className="space-y-2 pl-2">
+                              {wTasks.map((task, idx) => <TaskCard key={task.id} task={task} index={idx} dayTasks={wTasks} />)}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <button onClick={() => openCreate(todayStr)}
+                      className="w-full py-4 flex items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-white/10 text-slate-500 hover:text-violet-400 hover:border-violet-500/40 transition-all text-sm font-semibold">
+                      <span className="material-symbols-outlined">add_circle</span>
+                      Agregar tarea para hoy
+                    </button>
+                  </div>
+                )}
+
+                {/* ══════════ VISTA MES ══════════════════════════════════ */}
+
+                {agendaSubView === 'mes' && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between glass-panel px-6 py-4 rounded-2xl border border-white/5">
+                      <button onClick={() => setAgendaCurrentDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1))}
+                        className="p-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-all">
+                        <span className="material-symbols-outlined">chevron_left</span>
+                      </button>
+                      <div className="text-center">
+                        <p className="text-white font-bold text-lg capitalize">{monthNames[mesMonth]}</p>
+                        <p className="text-[10px] text-slate-500 uppercase tracking-widest">{mesYear}</p>
+                      </div>
+                      <button onClick={() => setAgendaCurrentDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
+                        className="p-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-all">
+                        <span className="material-symbols-outlined">chevron_right</span>
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-7 gap-1 text-center">
+                      {dayLabels.map(dl => (
+                        <p key={dl} className="text-[9px] font-black uppercase tracking-widest text-slate-600 py-2">{dl}</p>
+                      ))}
+                    </div>
+
+                    <div className="grid grid-cols-7 gap-1">
+                      {Array.from({ length: mesOffset }).map((_, i) => <div key={`e-${i}`} />)}
+                      {Array.from({ length: mesDaysInMonth }, (_, i) => {
+                        const day = i + 1;
+                        const ds = `${mesYear}-${String(mesMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                        const mTasks = tasksForDay(ds);
+                        const isToday = ds === todayStr;
+                        return (
+                          <div key={day}
+                            onClick={() => { setAgendaCurrentDate(new Date(mesYear, mesMonth, day)); setAgendaSubView('dia'); }}
+                            className={`cursor-pointer p-2 rounded-xl text-center min-h-[56px] transition-all hover:bg-violet-500/10
+                              ${isToday ? 'border border-violet-500/40 bg-violet-500/10' : 'border border-white/5 hover:border-violet-500/30'}`}>
+                            <p className={`text-sm font-bold ${isToday ? 'text-violet-400' : 'text-slate-400'}`}>{day}</p>
+                            {dayDot(ds)}
+                            {mTasks.length > 0 && (
+                              <p className="text-[8px] text-slate-600 font-semibold mt-0.5">{mTasks.length}</p>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div className="flex items-center gap-6 justify-center pt-2">
+                      {[['bg-violet-400', 'Todas hechas'], ['bg-amber-400', 'En progreso'], ['bg-rose-400', 'Pendientes']].map(([c, l]) => (
+                        <div key={l} className="flex items-center gap-2">
+                          <div className={`w-2.5 h-2.5 rounded-full ${c}`} />
+                          <span className="text-[9px] text-slate-500 uppercase font-semibold tracking-widest">{l}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <button onClick={() => openCreate(todayStr)}
+                      className="w-full py-4 flex items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-white/10 text-slate-500 hover:text-violet-400 hover:border-violet-500/40 transition-all text-sm font-semibold">
+                      <span className="material-symbols-outlined">add_circle</span>
+                      Agregar tarea para hoy
+                    </button>
+                  </div>
+                )}
+
+                {/* ══════════ MODAL CREAR / EDITAR ═══════════════════════ */}
+                {showAgendaModal && (
+                  <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md"
+                    onClick={() => setShowAgendaModal(false)}>
+                    <div className="bg-[#0d0d14] border border-white/10 rounded-3xl p-8 w-full max-w-md shadow-2xl space-y-6"
+                      onClick={e => e.stopPropagation()}>
+
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 bg-violet-500/20 rounded-2xl flex items-center justify-center border border-violet-500/30">
+                          <span className="material-symbols-outlined text-violet-400">{editingTask ? 'edit' : 'add_task'}</span>
+                        </div>
+                        <div>
+                          <h3 className="text-white font-bold">{editingTask ? 'Editar Tarea' : 'Nueva Tarea'}</h3>
+                          <p className="text-[10px] text-slate-500 uppercase tracking-widest">Mi Agenda Personal</p>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-2">Tarea *</label>
+                        <input
+                          autoFocus
+                          className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white text-sm outline-none focus:border-violet-500/40 transition-all placeholder:text-slate-600 font-semibold"
+                          placeholder="¿Qué vas a hacer?"
+                          value={agendaForm.title}
+                          onChange={e => setAgendaForm(f => ({ ...f, title: e.target.value }))}
+                          onKeyDown={e => { if (e.key === 'Enter') handleSaveAgenda(); }}
+                        />
+                      </div>
+
+                      {/* Cambiar fecha — solo al editar */}
+                      {editingTask && (
+                        <div>
+                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-2 flex items-center gap-2">
+                            <span className="material-symbols-outlined text-sm text-violet-500">calendar_today</span>
+                            Mover a otra fecha
+                          </label>
+                          <input
+                            type="date"
+                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white text-sm outline-none focus:border-violet-500/40 transition-all font-semibold cursor-pointer"
+                            value={agendaForm.date}
+                            onChange={e => setAgendaForm(f => ({ ...f, date: e.target.value }))}
+                          />
+                          {agendaForm.date !== personalTasks.find(t => t.id === editingTask)?.date && (
+                            <p className="text-[9px] text-amber-400 font-semibold uppercase tracking-widest mt-2 flex items-center gap-1">
+                              <span className="material-symbols-outlined text-sm">move_down</span>
+                              Tarea se moverá a {new Date(agendaForm.date + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 block mb-2">Nota (opcional)</label>
+                        <textarea
+                          rows={3}
+                          className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white text-sm outline-none focus:border-violet-500/40 transition-all placeholder:text-slate-600 font-semibold resize-none"
+                          placeholder="Detalles adicionales..."
+                          value={agendaForm.description}
+                          onChange={e => setAgendaForm(f => ({ ...f, description: e.target.value }))}
+                        />
+                      </div>
+
+                      <div className="flex gap-3 pt-2">
+                        <button onClick={() => setShowAgendaModal(false)}
+                          className="flex-1 py-4 rounded-2xl border border-white/10 text-slate-400 font-black text-xs uppercase tracking-widest hover:text-white hover:border-white/20 transition-all">
+                          Cancelar
+                        </button>
+                        <button onClick={handleSaveAgenda}
+                          className="flex-1 py-4 bg-violet-600 hover:bg-violet-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95">
+                          {editingTask ? 'Actualizar' : 'Guardar'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+              </div>
+            );
+          })()}
 
         </div>
       </div>

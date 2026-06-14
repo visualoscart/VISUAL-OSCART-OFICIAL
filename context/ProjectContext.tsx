@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
-import { Project, TextAsset, MediaAsset, Task, UserProfile, Receipt, ChatMessage, Expense, ExpenseTracking, Campaign, PerformanceReport, CustomerReceipt, CustomerQuote, ServiceCatalogItem, Income, Meeting } from '../types';
+import { Project, TextAsset, MediaAsset, Task, UserProfile, Receipt, ChatMessage, Expense, ExpenseTracking, Campaign, PerformanceReport, CustomerReceipt, CustomerQuote, ServiceCatalogItem, Income, Meeting, PersonalTask } from '../types';
 import { supabase } from '../lib/supabase';
 
 interface Notification {
@@ -104,6 +104,12 @@ interface ProjectContextType {
   addMeeting: (data: Omit<Meeting, 'id' | 'createdAt'>) => Promise<Meeting | null>;
   updateMeeting: (id: string, data: Partial<Meeting>) => Promise<void>;
   deleteMeeting: (id: string) => Promise<void>;
+  personalTasks: PersonalTask[];
+  addPersonalTask: (data: Omit<PersonalTask, 'id' | 'createdAt'>) => Promise<void>;
+  updatePersonalTask: (id: string, data: Partial<PersonalTask>) => Promise<void>;
+  togglePersonalTask: (id: string) => Promise<void>;
+  deletePersonalTask: (id: string) => Promise<void>;
+  reorderPersonalTasks: (orderedIds: string[]) => Promise<void>;
   messages: ChatMessage[];
   sendMessage: (content: string) => Promise<void>;
   logAiUsage: (userId: string, type: string) => void;
@@ -127,6 +133,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [customerQuotes, setCustomerQuotes] = useState<CustomerQuote[]>([]);
   const [servicesCatalog, setServicesCatalog] = useState<ServiceCatalogItem[]>([]);
   const [meetings, setMeetings] = useState<Meeting[]>([]);
+  const [personalTasks, setPersonalTasks] = useState<PersonalTask[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [baseSalaries, setBaseSalaries] = useState<Record<string, number>>({});
   const [taskRates, setTaskRates] = useState<Record<string, number>>({});
@@ -320,6 +327,9 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
           if (set.key === 'meetings_json') {
              try { setMeetings(JSON.parse(set.value)); } catch(e) { setMeetings([]); }
           }
+          if (set.key === 'personal_agenda_json') {
+             try { setPersonalTasks(JSON.parse(set.value)); } catch(e) { setPersonalTasks([]); }
+          }
         });
         
         if (loadedExpenses.length > 0 && loadedTracking.length > 0) {
@@ -376,7 +386,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
 
   return (
     <ProjectContext.Provider value={{
-      projects, tasks, currentUser, usersDB, receipts, expenses, expenseTracking, incomes, campaigns, performances, customerReceipts, customerQuotes, servicesCatalog, notifications, baseSalaries, taskRates, financeSettings, studioLogo, dashboardBanner, dashboardBannerTitle, dashboardBannerSubtitle, loginBackground, loginTitle, loginSubtitle, isSyncing, toast, showToast, messages, celebrationQuote, meetings,
+      projects, tasks, currentUser, usersDB, receipts, expenses, expenseTracking, incomes, campaigns, performances, customerReceipts, customerQuotes, servicesCatalog, notifications, baseSalaries, taskRates, financeSettings, studioLogo, dashboardBanner, dashboardBannerTitle, dashboardBannerSubtitle, loginBackground, loginTitle, loginSubtitle, isSyncing, toast, showToast, messages, celebrationQuote, meetings, personalTasks,
       login, logout,
       addServiceCatalogItem: async (data) => {
         try {
@@ -1154,6 +1164,76 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
           setMeetings(nextList);
         } catch (err) {
           showToast('Error al actualizar la reunión', 'error');
+        }
+      },
+      addPersonalTask: async (data) => {
+        try {
+          const maxOrder = Math.max(-1, ...personalTasks.filter(t => t.date === data.date).map(t => t.order ?? 0));
+          const newTask: PersonalTask = {
+            ...data,
+            id: `ptask-${Date.now()}`,
+            order: maxOrder + 1,
+            createdAt: new Date().toISOString()
+          };
+          const nextList = [...personalTasks, newTask];
+          const { error } = await supabase.from('settings').upsert({ key: 'personal_agenda_json', value: JSON.stringify(nextList) });
+          if (error) throw error;
+          setPersonalTasks(nextList);
+          showToast('Tarea agregada a la agenda ✓');
+        } catch (err) {
+          showToast('Error al guardar la tarea', 'error');
+        }
+      },
+      updatePersonalTask: async (id, data) => {
+        try {
+          const nextList = personalTasks.map(t => t.id === id ? { ...t, ...data } : t);
+          const { error } = await supabase.from('settings').upsert({ key: 'personal_agenda_json', value: JSON.stringify(nextList) });
+          if (error) throw error;
+          setPersonalTasks(nextList);
+          showToast('Tarea actualizada');
+        } catch (err) {
+          showToast('Error al actualizar la tarea', 'error');
+        }
+      },
+      togglePersonalTask: async (id) => {
+        try {
+          const task = personalTasks.find(t => t.id === id);
+          if (!task) return;
+          const isNowDone = !task.completed;
+          const nextList = personalTasks.map(t =>
+            t.id === id
+              ? { ...t, completed: isNowDone, completedAt: isNowDone ? new Date().toISOString() : undefined }
+              : t
+          );
+          const { error } = await supabase.from('settings').upsert({ key: 'personal_agenda_json', value: JSON.stringify(nextList) });
+          if (error) throw error;
+          setPersonalTasks(nextList);
+        } catch (err) {
+          showToast('Error al actualizar la tarea', 'error');
+        }
+      },
+      deletePersonalTask: async (id) => {
+        try {
+          const nextList = personalTasks.filter(t => t.id !== id);
+          const { error } = await supabase.from('settings').upsert({ key: 'personal_agenda_json', value: JSON.stringify(nextList) });
+          if (error) throw error;
+          setPersonalTasks(nextList);
+          showToast('Tarea eliminada');
+        } catch (err) {
+          showToast('Error al eliminar la tarea', 'error');
+        }
+      },
+      reorderPersonalTasks: async (orderedIds) => {
+        try {
+          const nextList = personalTasks.map(t => {
+            const idx = orderedIds.indexOf(t.id);
+            return idx !== -1 ? { ...t, order: idx } : t;
+          });
+          const { error } = await supabase.from('settings').upsert({ key: 'personal_agenda_json', value: JSON.stringify(nextList) });
+          if (error) throw error;
+          setPersonalTasks(nextList);
+        } catch (err) {
+          showToast('Error al reordenar', 'error');
         }
       },
       deleteMeeting: async (id) => {

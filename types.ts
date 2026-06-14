@@ -282,6 +282,17 @@ export interface CustomerQuote {
   createdAt: string;
 }
 
+export interface PersonalTask {
+  id: string;
+  title: string;
+  description?: string;
+  date: string;          // YYYY-MM-DD
+  completed: boolean;
+  completedAt?: string;
+  order: number;
+  createdAt: string;
+}
+
 export type MeetingCategory =
   | 'Gestión de Redes Sociales'
   | 'Diseño de Marca'
