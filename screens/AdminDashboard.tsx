@@ -3263,10 +3263,11 @@ const AdminDashboard: React.FC = () => {
               AGENDA PERSONAL — Mi Diario de Quehaceres
           ========================================================= */}
           {activeView === 'agenda' && (() => {
-            const todayStr = new Date().toISOString().split('T')[0];
-
             // ─── Helpers de fecha ──────────────────────────────────────
-            const fmtDate = (d: Date) => d.toISOString().split('T')[0];
+            // ⚠️ IMPORTANTE: usar métodos locales para evitar bug de timezone UTC vs local
+            const fmtDate = (d: Date) =>
+              `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            const todayStr = fmtDate(new Date());
             const addDays = (d: Date, n: number) => { const r = new Date(d); r.setDate(r.getDate() + n); return r; };
 
             // ─── Semana: lunes de la semana actual ──────────────────

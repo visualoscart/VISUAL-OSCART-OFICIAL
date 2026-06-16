@@ -29,7 +29,7 @@ const Calendar: React.FC = () => {
 
   const [taskForm, setTaskForm] = useState({
     title: '', description: '', projectId: '', collaboratorId: '', 
-    date: new Date().toISOString().split('T')[0], driveLink: ''
+    date: (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })(), driveLink: ''
   });
 
   const [editForm, setEditForm] = useState<Partial<Task>>({});
@@ -41,7 +41,7 @@ const Calendar: React.FC = () => {
         setSelectedTaskDetail(task);
         setEditForm(task);
         setConfirmDeleteStep(false);
-        setCurrentDate(new Date(task.date));
+        setCurrentDate(new Date(task.date + 'T12:00:00'));
         navigate(location.pathname, { replace: true, state: {} });
       }
     }
@@ -70,7 +70,7 @@ const Calendar: React.FC = () => {
       description: '', 
       projectId: selectedBrandId !== 'all' ? selectedBrandId : '', 
       collaboratorId: '', 
-      date: new Date().toISOString().split('T')[0], 
+      date: (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })(), 
       driveLink: '' 
     });
     showToast("Tarea creada");
