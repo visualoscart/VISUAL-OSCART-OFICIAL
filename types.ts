@@ -148,13 +148,19 @@ export interface Project {
 export interface CampaignProductionDate {
   id: string;
   date: string;
+  locationId?: string; // Link to CampaignProductionLocation
+}
+
+export interface CampaignProductionLocation {
+  id: string;
+  name: string;
 }
 
 export interface CampaignTheme {
   id: string;
   title: string;
   format: string;
-  content: string; // descripciones, diálogos o guiones integrados
+  content: string;
   productionId?: string; // Link to CampaignProductionDate
 }
 
@@ -166,6 +172,7 @@ export interface Campaign {
   objective?: string;
   themes: CampaignTheme[];
   productionDates: CampaignProductionDate[];
+  productionLocations: CampaignProductionLocation[];
   createdAt: string;
 }
 

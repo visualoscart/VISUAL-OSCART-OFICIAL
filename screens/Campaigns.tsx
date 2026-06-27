@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useProjects } from '../context/ProjectContext';
-import { Project, Campaign, CampaignTheme, CampaignProductionDate } from '../types';
+import { Project, Campaign, CampaignTheme, CampaignProductionDate, CampaignProductionLocation } from '../types';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -65,6 +65,7 @@ const Campaigns: React.FC = () => {
  const [objective, setObjective] = useState('');
  const [themes, setThemes] = useState<CampaignTheme[]>([]);
  const [productionDates, setProductionDates] = useState<CampaignProductionDate[]>([]);
+ const [productionLocations, setProductionLocations] = useState<CampaignProductionLocation[]>([]);
  const [editingCampaignId, setEditingCampaignId] = useState<string | null>(null);
 
  // UI state for theme expansion
@@ -82,6 +83,7 @@ const Campaigns: React.FC = () => {
  setObjective('');
  setThemes([]);
  setProductionDates([]);
+ setProductionLocations([]);
  setIsCreating(false);
  setEditingCampaignId(null);
  setExpandedThemeId(null);
@@ -93,6 +95,7 @@ const Campaigns: React.FC = () => {
  setObjective(camp.objective || '');
  setThemes(camp.themes);
  setProductionDates(camp.productionDates);
+ setProductionLocations(camp.productionLocations || []);
  setEditingCampaignId(camp.id);
  setIsCreating(true);
  setIsViewBodega(false);
@@ -165,6 +168,14 @@ const Campaigns: React.FC = () => {
  setProductionDates([...productionDates, newDate]);
  };
 
+ const handleAddLocation = () => {
+ const newLoc: CampaignProductionLocation = {
+ id: `loc-${Date.now()}`,
+ name: '',
+ };
+ setProductionLocations([...productionLocations, newLoc]);
+ };
+
  const handleSaveCampaign = async () => {
  if (!selectedProject) return;
  if (!month || themes.length === 0) {
@@ -178,7 +189,8 @@ const Campaigns: React.FC = () => {
  year,
  objective,
  themes,
- productionDates
+ productionDates,
+ productionLocations
  });
  } else {
  const newCampaign: Omit<Campaign, 'id' | 'createdAt'> = {
@@ -188,6 +200,7 @@ const Campaigns: React.FC = () => {
  objective,
  themes,
  productionDates,
+ productionLocations,
  };
  await addCampaign(newCampaign);
  }
@@ -648,42 +661,83 @@ const Campaigns: React.FC = () => {
 
  {/* MAIN SECTION: THEMES, CONTENT & DATES */}
  <div className="lg:col-span-3 space-y-8 pb-32">
- {/* 1. FECHAS DE PRODUCCIÓN (FIRST) */}
+ {/* 1. FECHAS Y UBICACIONES DE PRODUCCIÓN */}
  <section className="space-y-6">
  <div className="flex items-center justify-between">
  <div className="flex items-center gap-3">
  <div className="w-10 h-10 rounded-xl bg-orange-500/20 flex items-center justify-center text-orange-500 font-bold">01</div>
- <h3 className="text-xl font-black text-white uppercase tracking-tighter">Fechas de Producción</h3>
+ <h3 className="text-xl font-black text-white uppercase tracking-tighter">Fechas y Ubicaciones</h3>
  </div>
- <button onClick={handleAddDate} className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white text-xs font-black uppercase border border-white/5 border-t-white/15/10 transition-all flex items-center gap-2">
- <span className="material-symbols-outlined text-sm">add</span> Añadir Fecha
+ <div className="flex gap-2">
+ <button onClick={handleAddDate} className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white text-xs font-black uppercase border border-white/5 transition-all flex items-center gap-2">
+ <span className="material-symbols-outlined text-sm">add</span> Añadir Sesión
+ </button>
+ <button onClick={handleAddLocation} className="px-4 py-2 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary text-xs font-black uppercase border border-primary/20 transition-all flex items-center gap-2">
+ <span className="material-symbols-outlined text-sm">add_location_alt</span> Nueva Ubicación
  </button>
  </div>
- 
- <div className="flex flex-wrap gap-4">
- {productionDates.map((pdate, idx) => (
- <div key={pdate.id} className="flex items-center gap-4 p-4 rounded-2xl bg-card-dark border border-white/5 border-t-white/15/5">
- <div className="flex flex-col">
- <span className="text-[8px] font-black uppercase text-slate-500 tracking-[0.2em] mb-1">Sesión {idx + 1}</span>
- <input 
- type="date"
- value={pdate.date}
- onChange={(e) => setProductionDates(productionDates.map(d => d.id === pdate.id ? {...d, date: e.target.value} : d))}
- className="bg-transparent border-none text-white font-bold focus:ring-0 p-0"
- />
  </div>
- <button onClick={() => setProductionDates(productionDates.filter(d => d.id !== pdate.id))} className="text-slate-300 hover:text-rose-500">
- <span className="material-symbols-outlined">delete</span>
+ 
+ {/* Ubicaciones disponibles */}
+ {productionLocations.length > 0 && (
+ <div className="flex flex-wrap gap-2 p-4 rounded-2xl bg-white/[0.02] border border-white/5">
+ <span className="text-[9px] font-black uppercase text-slate-500 tracking-widest self-center mr-2">Lugares:</span>
+ {productionLocations.map((loc, idx) => (
+ <div key={loc.id} className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-primary/10 border border-primary/20">
+ <span className="material-symbols-outlined text-primary text-sm">location_on</span>
+ <input
+ type="text"
+ placeholder={`Lugar ${idx + 1}`}
+ value={loc.name}
+ onChange={(e) => setProductionLocations(productionLocations.map(l => l.id === loc.id ? {...l, name: e.target.value} : l))}
+ className="bg-transparent border-none text-primary/80 font-bold focus:ring-0 p-0 text-xs w-32"
+ />
+ <button onClick={() => setProductionLocations(productionLocations.filter(l => l.id !== loc.id))} className="text-slate-500 hover:text-rose-500 ml-1">
+ <span className="material-symbols-outlined text-sm">close</span>
  </button>
  </div>
  ))}
+ </div>
+ )}
+
+ {/* Tarjetas de fecha */}
+ <div className="flex flex-wrap gap-4">
+ {productionDates.map((pdate, idx) => (
+ <div key={pdate.id} className="flex flex-col gap-3 p-5 rounded-2xl bg-card-dark border border-white/5 min-w-[240px]">
+ <div className="flex items-center justify-between">
+ <span className="text-[8px] font-black uppercase text-orange-400 tracking-[0.2em]">Sesión {idx + 1}</span>
+ <button onClick={() => setProductionDates(productionDates.filter(d => d.id !== pdate.id))} className="text-slate-500 hover:text-rose-500">
+ <span className="material-symbols-outlined text-base">delete</span>
+ </button>
+ </div>
+ <input
+ type="date"
+ value={pdate.date}
+ onChange={(e) => setProductionDates(productionDates.map(d => d.id === pdate.id ? {...d, date: e.target.value} : d))}
+ className="bg-transparent border-none text-white font-bold text-base focus:ring-0 p-0"
+ />
+ <div className="pt-2 border-t border-white/5">
+ <label className="text-[8px] font-black uppercase text-slate-500 tracking-[0.2em] mb-1 block">📍 Ubicación</label>
+ <select
+ value={pdate.locationId || ''}
+ onChange={(e) => setProductionDates(productionDates.map(d => d.id === pdate.id ? {...d, locationId: e.target.value} : d))}
+ className="w-full p-2 rounded-xl bg-white/5 border border-white/5 text-white text-xs font-bold outline-none"
+ >
+ <option value="" className="bg-background-dark text-slate-500">Sin ubicación</option>
+ {productionLocations.map((l, i) => (
+ <option key={l.id} value={l.id} className="bg-background-dark">{l.name || `Lugar ${i + 1}`}</option>
+ ))}
+ </select>
+ </div>
+ </div>
+ ))}
  {productionDates.length === 0 && (
- <p className="text-slate-500 text-xs py-2">No se han definido fechas todavía.</p>
+ <p className="text-slate-500 text-xs py-2">No hay sesiones definidas todavía.</p>
  )}
  </div>
  </section>
 
- {/* 2. TEMAS Y GUIONES (SECOND) */}
+ {/* 2. TEMAS Y GUIONES */}
  <section className="space-y-6">
  <div className="flex items-center justify-between">
  <div className="flex items-center gap-3">
@@ -768,15 +822,19 @@ const Campaigns: React.FC = () => {
  {tasks.some(t => t.campaignThemeId === theme.id) ? 'Agendado' : 'Agendar Misión'}
  </button>
 
- <label className="text-[9px] font-black uppercase tracking-widest text-slate-500">Fecha Prod.</label>
- <select 
- value={theme.productionId || ''}
- onChange={(e) => setThemes(themes.map(t => t.id === theme.id ? {...t, productionId: e.target.value} : t))}
- className="p-3 rounded-xl bg-white/5 border border-white/5 border-t-white/15/10 text-white text-xs font-bold outline-none"
- >
- <option value=""className="bg-background-dark text-slate-500">Por definir</option>
- {productionDates.map((d, i) => <option key={d.id} value={d.id} className="bg-background-dark">Sesión {i + 1} ({d.date})</option>)}
- </select>
+ <div className="flex flex-col gap-1">
+  <label className="text-[9px] font-black uppercase tracking-widest text-slate-500">Fecha Prod.</label>
+  <select 
+  value={theme.productionId || ''}
+  onChange={(e) => setThemes(themes.map(t => t.id === theme.id ? {...t, productionId: e.target.value} : t))}
+  className="p-3 rounded-xl bg-white/5 border border-white/5 border-t-white/15/10 text-white text-xs font-bold outline-none"
+  >
+  <option value="" className="bg-background-dark text-slate-500">Por definir</option>
+  {productionDates.map((d, i) => (
+    <option key={d.id} value={d.id} className="bg-background-dark">Sesión {i + 1} — {d.date}</option>
+  ))}
+  </select>
+ </div>
  </div>
  </div>
 
@@ -845,31 +903,84 @@ const Campaigns: React.FC = () => {
  </div>
  )}
 
- {/* THEMES SUMMARY */}
- <div className="space-y-4">
- <h2 className="text-sm font-black uppercase tracking-[0.3em] text-slate-500 border-b border-white/5 border-t-white/15 pb-2">Resumen de Pilares de Contenido</h2>
- <div className="grid grid-cols-2 gap-3">
- {selectedCampaign.themes.map((theme, i) => (
- <div key={theme.id} className="p-4 border border-white/5 border-t-white/15 bg-gradient-to-br from-[#363636] to-[#2a2a2a] shadow-xl shadow-black/40 rounded-2xl flex justify-between items-center group shadow-sm">
- <div className="flex gap-4 items-center">
- <div className="text-2xl font-black text-white tracking-tighter shrink-0 border-r-2 border-slate-200 pr-4">
- {i + 1}
- </div>
- <div className="flex flex-col">
- <span className="text-[18px] font-black text-white uppercase leading-none mb-1">{theme.title}</span>
- <span className="text-[11px] font-bold text-slate-500 uppercase tracking-[0.2em]">{theme.format}</span>
- </div>
- </div>
- <div className="text-right">
- <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">PROD.</div>
- <div className="text-[13px] font-black text-slate-100 leading-none">
- {selectedCampaign.productionDates.find(d => d.id === theme.productionId)?.date || 'Pte.'}
- </div>
- </div>
- </div>
- ))}
- </div>
- </div>
+ {/* THEMES SUMMARY BY PRODUCTION DATE */}
+  <div className="space-y-6">
+  <h2 className="text-sm font-black uppercase tracking-[0.3em] text-slate-500 border-b-2 border-slate-200 pb-3">Fechas de Producción</h2>
+
+  {(() => {
+    const brand = projects.find(p => p.id === selectedCampaign.projectId);
+    const accentColor = brand?.brandColors?.[0] || '#8c2bee';
+
+    // Sort production dates chronologically
+    const sortedDates = [...selectedCampaign.productionDates].sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+
+    // Themes that have a production date assigned
+    const assignedDateIds = new Set(selectedCampaign.productionDates.map(d => d.id));
+
+    // Build sections: one per production date + one for unassigned
+    const sections: { dateObj: typeof selectedCampaign.productionDates[0] | null; themes: typeof selectedCampaign.themes }[] = 
+      sortedDates.map(d => ({
+        dateObj: d,
+        themes: selectedCampaign.themes.filter(t => t.productionId === d.id)
+      })).filter(s => s.themes.length > 0);
+
+    // Unassigned themes (no productionId or productionId not found)
+    const unassigned = selectedCampaign.themes.filter(
+      t => !t.productionId || !assignedDateIds.has(t.productionId)
+    );
+    if (unassigned.length > 0) {
+      sections.push({ dateObj: null, themes: unassigned });
+    }
+
+    return sections.map((section, sIdx) => {
+      const dateLabel = section.dateObj
+        ? format(new Date(section.dateObj.date + 'T12:00:00'), "EEEE d 'de' MMMM", { locale: es }).toUpperCase()
+        : 'POR DEFINIR';
+      const dateShort = section.dateObj
+        ? format(new Date(section.dateObj.date + 'T12:00:00'), 'dd MMM yyyy', { locale: es }).toUpperCase()
+        : '';
+
+      // Global index offset so numbering is continuous across the whole doc
+      const globalOffset = sections.slice(0, sIdx).reduce((acc, s) => acc + s.themes.length, 0);
+
+      // Find location directly from the date object (locationId is now on the date)
+      const sectionLocation = section.dateObj
+        ? (selectedCampaign.productionLocations?.find(l => l.id === section.dateObj!.locationId) || null)
+        : null;
+
+      return (
+        <div key={section.dateObj?.id || 'unassigned'} className="space-y-3">
+          {/* Date Header - dark style like pillar cards */}
+          <div className="py-3 px-5 rounded-2xl bg-gradient-to-br from-[#2a2a2a] to-[#222] border border-white/10" style={{ borderLeft: `4px solid ${section.dateObj ? accentColor : '#94a3b8'}` }}>
+            <span className="text-[14px] font-black uppercase tracking-[0.25em] block" style={{ color: section.dateObj ? accentColor : '#94a3b8' }}>
+              {dateLabel}
+            </span>
+            {sectionLocation && (
+              <span className="text-[11px] font-bold mt-1 block text-slate-400">📍 {sectionLocation.name}</span>
+            )}
+          </div>
+
+          {/* Themes for this date */}
+          <div className="grid grid-cols-2 gap-3 pl-2">
+            {section.themes.map((theme, i) => (
+              <div key={theme.id} className="p-4 border border-white/10 bg-gradient-to-br from-[#2e2e2e]/80 to-[#222]/80 rounded-2xl flex gap-4 items-center">
+                <div className="text-2xl font-black text-white tracking-tighter shrink-0 border-r-2 border-slate-600 pr-4">
+                  {globalOffset + i + 1}
+                </div>
+                <div className="flex flex-col flex-1">
+                  <span className="text-[17px] font-black text-white uppercase leading-tight mb-1" style={{ wordBreak: 'break-word', whiteSpace: 'normal' }}>{theme.title}</span>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.2em]">{theme.format}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    });
+  })()}
+  </div>
  </div>
  </div>
 
