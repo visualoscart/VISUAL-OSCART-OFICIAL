@@ -40,13 +40,7 @@ const AppShell: React.FC = () => {
   const { isAppReady } = useProjects();
   const [loaderVisible, setLoaderVisible] = useState(true);
 
-  // Hard cap: loader nunca dura más de 3 segundos sin importar la red
-  useEffect(() => {
-    const maxTimer = setTimeout(() => setLoaderVisible(false), 3000);
-    return () => clearTimeout(maxTimer);
-  }, []);
-
-  // Si los datos llegan antes de 3s, ocultar 600ms después (para que la barra llegue al 100%)
+  // Se oculta cuando los datos críticos ya cargaron (users + settings)
   useEffect(() => {
     if (isAppReady) {
       const t = setTimeout(() => setLoaderVisible(false), 600);

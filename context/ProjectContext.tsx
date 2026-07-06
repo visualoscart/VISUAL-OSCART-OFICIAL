@@ -178,16 +178,13 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
     } catch (e) { console.error("Notif Error:", e); }
   };
 
-  const fetchData = useCallback(async (silent = false) => {
-    if (!silent) setIsSyncing(true);
+  // ── FASE 1: solo users + settings (rápido, desbloquea el loader) ──────────
+  const fetchCritical = useCallback(async () => {
+    setIsSyncing(true);
     try {
-      const [uRes, pRes, tRes, rRes, sRes, nRes] = await Promise.all([
+      const [uRes, sRes] = await Promise.all([
         supabase.from('users').select('*'),
-        supabase.from('projects').select('*').order('created_at', { ascending: false }),
-        supabase.from('tasks').select('*').order('created_at', { ascending: false }),
-        supabase.from('receipts').select('*').order('created_at', { ascending: false }),
         supabase.from('settings').select('*'),
-        supabase.from('notifications').select('*').order('created_at', { ascending: false })
       ]);
 
       if (uRes.data) {
@@ -195,90 +192,6 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
           id: u.id, firstName: u.first_name, lastName: u.last_name, email: u.email,
           password: u.password, role: u.role, avatar: u.avatar, banner: u.banner,
           birthDate: u.birth_date, joinedAt: u.joined_at
-        })));
-      }
-      
-      if (pRes.data) {
-        const now = new Date();
-        const validProjects: any[] = [];
-
-        for (const p of pRes.data) {
-          if (p.status === 'Inactivo' && p.typography?.inactiveAt) {
-            const inactiveDate = new Date(p.typography.inactiveAt);
-            const diffDays = Math.ceil(Math.abs(now.getTime() - inactiveDate.getTime()) / (1000 * 60 * 60 * 24));
-            if (diffDays >= 60) {
-              // Fire and forget delete
-              supabase.from('projects').delete().eq('id', p.id).then();
-              continue;
-            }
-          }
-          validProjects.push({ 
-            id: p.id, name: p.name, niche: p.niche, client: p.client,
-            date: p.date, status: p.status, progress: p.progress,
-            logoUrl: p.logo_url, brandManualUrl: p.brand_manual_url,
-            brandCode: p.typography?.brandCode,
-            brief: p.brief, hell: p.hell, heaven: p.heaven,
-            monthlyFee: Number(p.monthly_fee), textRepository: p.text_repository || [],
-            mediaRepository: p.media_repository || [], brandColors: p.brand_colors || [],
-            typography: p.typography || undefined,
-            driveFolderId: p.typography?.driveFolderId,
-            collaborators: p.collaborators || []
-          });
-        }
-        setProjects(validProjects);
-      }
-
-      if (tRes.data) {
-        setTasks(tRes.data.map(t => {
-          let campaignId = undefined;
-          let campaignThemeId = undefined;
-          let cleanDescription = t.description || '';
-
-          // Parse metadata tag [REF:campaignId:themeId]
-          const refMatch = cleanDescription.match(/\[REF:(camp-[^:]+):(theme-[^\]]+)\]/);
-          if (refMatch) {
-            campaignId = refMatch[1];
-            campaignThemeId = refMatch[2];
-            // Remove the tag from the displayed description to keep it clean
-            cleanDescription = cleanDescription.replace(/\n\n\[REF:.*\]/, '').trim();
-          }
-
-          return {
-            id: t.id, projectId: t.project_id, collaboratorId: t.collaborator_id,
-            title: t.title, description: cleanDescription, date: t.date,
-            status: t.status, driveLink: t.drive_link, createdAt: t.created_at,
-            completedAt: t.completed_at,
-            campaignId,
-            campaignThemeId
-          };
-        }));
-      }
-
-      let parsedFinanceSettings: FinanceSettings = { estTaxes: 0 };
-      if (sRes.data) {
-        const found = sRes.data.find(set => set.key === 'financeSettings');
-        if (found) {
-          try { parsedFinanceSettings = JSON.parse(found.value); } catch(e) {}
-        }
-      }
-
-      if (rRes.data) {
-        console.log("Fetched receipts from DB:", rRes.data.length);
-        setReceipts(rRes.data.map(r => ({
-          id: String(r.id), userId: r.user_id, userName: r.user_name,
-          month: r.month, year: r.year, baseSalary: Number(r.base_salary),
-          ninjaBonus: Number(r.ninja_bonus), masterBonus: Number(r.master_bonus),
-          completedTasks: r.completed_tasks,
-          tasksTotal: r.tasks_total,
-          total: Number(r.total), date: r.date, receiptNumber: r.receipt_number,
-          incomeId: parsedFinanceSettings?.receiptLinks?.[String(r.id)] || r.income_id
-        })));
-      }
-
-      if (nRes.data) {
-        setNotifications(nRes.data.map(n => ({
-          id: n.id, userId: n.user_id, title: n.title, message: n.message,
-          type: n.type, read: n.read, createdAt: n.created_at
         })));
       }
 
@@ -333,16 +246,12 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
              try { setPersonalTasks(JSON.parse(set.value)); } catch(e) { setPersonalTasks([]); }
           }
         });
-        
         if (loadedExpenses.length > 0 && loadedTracking.length > 0) {
            let needsMigration = false;
            loadedTracking.forEach(t => {
               if (t.incomeId) {
                  const exp = loadedExpenses.find(e => e.id === t.id);
-                 if (exp && !exp.incomeId) {
-                    exp.incomeId = t.incomeId;
-                    needsMigration = true;
-                 }
+                 if (exp && !exp.incomeId) { exp.incomeId = t.incomeId; needsMigration = true; }
               }
            });
            if (needsMigration) {
@@ -351,7 +260,91 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
            }
         }
       }
-    } catch (e) { console.error("Critical Sync Failure:", e); } finally { if (!silent) { setIsSyncing(false); setIsAppReady(true); } }
+    } catch (e) { console.error("Critical fetch error:", e); } finally {
+      setIsSyncing(false);
+      setIsAppReady(true); // ← loader se quita aquí, con datos reales
+      // Fase 2: carga el resto en background sin bloquear nada
+      fetchData(true);
+    }
+  }, []);
+
+  // ── FASE 2: projects, tasks, receipts, notifications (background) ──────────
+  const fetchData = useCallback(async (silent = false) => {
+    if (!silent) setIsSyncing(true);
+    try {
+      const [pRes, tRes, rRes, nRes] = await Promise.all([
+        supabase.from('projects').select('*').order('created_at', { ascending: false }),
+        supabase.from('tasks').select('*').order('created_at', { ascending: false }),
+        supabase.from('receipts').select('*').order('created_at', { ascending: false }),
+        supabase.from('notifications').select('*').order('created_at', { ascending: false })
+      ]);
+
+      if (pRes.data) {
+        const now = new Date();
+        const validProjects: any[] = [];
+        for (const p of pRes.data) {
+          if (p.status === 'Inactivo' && p.typography?.inactiveAt) {
+            const inactiveDate = new Date(p.typography.inactiveAt);
+            const diffDays = Math.ceil(Math.abs(now.getTime() - inactiveDate.getTime()) / (1000 * 60 * 60 * 24));
+            if (diffDays >= 60) {
+              supabase.from('projects').delete().eq('id', p.id).then();
+              continue;
+            }
+          }
+          validProjects.push({
+            id: p.id, name: p.name, niche: p.niche, client: p.client,
+            date: p.date, status: p.status, progress: p.progress,
+            logoUrl: p.logo_url, brandManualUrl: p.brand_manual_url,
+            brandCode: p.typography?.brandCode,
+            brief: p.brief, hell: p.hell, heaven: p.heaven,
+            monthlyFee: Number(p.monthly_fee), textRepository: p.text_repository || [],
+            mediaRepository: p.media_repository || [], brandColors: p.brand_colors || [],
+            typography: p.typography || undefined,
+            driveFolderId: p.typography?.driveFolderId,
+            collaborators: p.collaborators || []
+          });
+        }
+        setProjects(validProjects);
+      }
+
+      if (tRes.data) {
+        setTasks(tRes.data.map(t => {
+          let campaignId = undefined;
+          let campaignThemeId = undefined;
+          let cleanDescription = t.description || '';
+          const refMatch = cleanDescription.match(/\[REF:(camp-[^:]+):(theme-[^\]]+)\]/);
+          if (refMatch) {
+            campaignId = refMatch[1];
+            campaignThemeId = refMatch[2];
+            cleanDescription = cleanDescription.replace(/\n\n\[REF:.*\]/, '').trim();
+          }
+          return {
+            id: t.id, projectId: t.project_id, collaboratorId: t.collaborator_id,
+            title: t.title, description: cleanDescription, date: t.date,
+            status: t.status, driveLink: t.drive_link, createdAt: t.created_at,
+            completedAt: t.completed_at, campaignId, campaignThemeId
+          };
+        }));
+      }
+
+      if (rRes.data) {
+        setReceipts(rRes.data.map(r => ({
+          id: String(r.id), userId: r.user_id, userName: r.user_name,
+          month: r.month, year: r.year, baseSalary: Number(r.base_salary),
+          ninjaBonus: Number(r.ninja_bonus), masterBonus: Number(r.master_bonus),
+          completedTasks: r.completed_tasks, tasksTotal: r.tasks_total,
+          total: Number(r.total), date: r.date, receiptNumber: r.receipt_number,
+          incomeId: r.income_id
+        })));
+      }
+
+      if (nRes.data) {
+        setNotifications(nRes.data.map(n => ({
+          id: n.id, userId: n.user_id, title: n.title, message: n.message,
+          type: n.type, read: n.read, createdAt: n.created_at
+        })));
+      }
+    } catch (e) { console.error("Background Sync Error:", e); } finally { if (!silent) setIsSyncing(false); }
   }, []);
 
   useEffect(() => {
@@ -359,7 +352,8 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
     return () => { supabase.removeChannel(channel); };
   }, [fetchData]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  // Arranque: Fase 1 primero, luego Fase 2 en background automáticamente
+  useEffect(() => { fetchCritical(); }, [fetchCritical]);
 
   const login = async (email: string, pass: string) => {
     const cleanEmail = email.trim().toLowerCase();
