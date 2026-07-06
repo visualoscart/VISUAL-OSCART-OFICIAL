@@ -1,5 +1,7 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+// Import as Vite asset → gets a hashed URL, properly cached by the browser
+import videoSrc from '../ROSTRO ANIMADO.mp4';
 
 const PHRASES = [
   'Sincronizando proyectos...',
@@ -17,6 +19,8 @@ const OrbLoader: React.FC<OrbLoaderProps> = ({ visible }) => {
   const [phraseIndex, setPhraseIndex] = useState(0);
   const [fadePhrase, setFadePhrase] = useState(true);
   const [hiding, setHiding] = useState(false);
+  const [videoReady, setVideoReady] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   // Cycle through phrases
   useEffect(() => {
@@ -39,6 +43,13 @@ const OrbLoader: React.FC<OrbLoaderProps> = ({ visible }) => {
       setHiding(false);
     }
   }, [visible]);
+
+  // Try to play manually in case autoplay was deferred
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.play().catch(() => {});
+    }
+  }, []);
 
   if (!visible && hiding) return null;
 
@@ -157,7 +168,7 @@ const OrbLoader: React.FC<OrbLoaderProps> = ({ visible }) => {
             }} />
           </div>
 
-          {/* Second orbiting dot (offset) */}
+          {/* Second orbiting dot */}
           <div style={{
             position: 'absolute',
             inset: -8,
@@ -201,26 +212,29 @@ const OrbLoader: React.FC<OrbLoaderProps> = ({ visible }) => {
             overflow: 'hidden',
             animation: 'orbFloat 4s ease-in-out infinite',
           }}>
-            {/* Specular highlight */}
-            <div style={{
-              position: 'absolute',
-              top: '15%',
-              left: '20%',
-              width: '45%',
-              height: '30%',
-              borderRadius: '50%',
-              background: 'radial-gradient(ellipse, rgba(255,255,255,0.18) 0%, transparent 100%)',
-              filter: 'blur(6px)',
-            }} />
 
-            {/* Inner wave animation */}
+            {/* ── FALLBACK CSS: visible mientras el video carga ── */}
             <div style={{
               position: 'absolute',
               inset: 0,
               borderRadius: '50%',
               overflow: 'hidden',
-              opacity: 0.3,
+              opacity: videoReady ? 0 : 1,
+              transition: 'opacity 0.6s ease',
+              zIndex: 0,
             }}>
+              {/* Gradiente rotante como placeholder */}
+              <div style={{
+                position: 'absolute',
+                inset: 0,
+                background: `
+                  radial-gradient(circle at 38% 35%, rgba(192,132,252,0.55) 0%, transparent 55%),
+                  radial-gradient(circle at 68% 72%, rgba(109,40,217,0.4) 0%, transparent 45%),
+                  radial-gradient(circle at 50% 50%, rgba(88,28,220,0.9) 0%, rgba(55,10,140,0.95) 100%)
+                `,
+                animation: 'orbFallbackSpin 3s linear infinite',
+              }} />
+              {/* Onda interna */}
               <div style={{
                 position: 'absolute',
                 bottom: '-20%',
@@ -228,18 +242,40 @@ const OrbLoader: React.FC<OrbLoaderProps> = ({ visible }) => {
                 width: '140%',
                 height: '140%',
                 borderRadius: '40%',
-                background: 'rgba(167,139,250,0.4)',
+                background: 'rgba(167,139,250,0.35)',
                 animation: 'orbWave 3s ease-in-out infinite',
               }} />
+              {/* Iniciales VO como placeholder */}
+              <div style={{
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                <span style={{
+                  fontFamily: "'Poppins', sans-serif",
+                  fontWeight: 900,
+                  fontSize: 38,
+                  color: 'rgba(255,255,255,0.85)',
+                  letterSpacing: '-2px',
+                  textShadow: '0 0 20px rgba(192,132,252,0.8)',
+                  userSelect: 'none',
+                }}>
+                  VO
+                </span>
+              </div>
             </div>
 
-            {/* Animated video clipped to circle */}
+            {/* ── VIDEO: fade-in cuando está listo ── */}
             <video
-              src="/ROSTRO ANIMADO.mp4"
+              ref={videoRef}
+              src={videoSrc}
               autoPlay
               loop
               muted
               playsInline
+              onCanPlay={() => setVideoReady(true)}
               style={{
                 position: 'absolute',
                 inset: 0,
@@ -248,8 +284,24 @@ const OrbLoader: React.FC<OrbLoaderProps> = ({ visible }) => {
                 objectFit: 'cover',
                 borderRadius: '50%',
                 zIndex: 1,
+                opacity: videoReady ? 1 : 0,
+                transition: 'opacity 0.6s ease',
               }}
             />
+
+            {/* Specular highlight (siempre encima del video) */}
+            <div style={{
+              position: 'absolute',
+              top: '15%',
+              left: '20%',
+              width: '45%',
+              height: '30%',
+              borderRadius: '50%',
+              background: 'radial-gradient(ellipse, rgba(255,255,255,0.12) 0%, transparent 100%)',
+              filter: 'blur(6px)',
+              zIndex: 2,
+              pointerEvents: 'none',
+            }} />
           </div>
         </div>
 
@@ -300,7 +352,7 @@ const OrbLoader: React.FC<OrbLoaderProps> = ({ visible }) => {
         </div>
       </div>
 
-      {/* Keyframe styles injected */}
+      {/* Keyframes */}
       <style>{`
         @keyframes orbPulse {
           0%, 100% { transform: scale(1); opacity: 0.7; }
@@ -325,6 +377,10 @@ const OrbLoader: React.FC<OrbLoaderProps> = ({ visible }) => {
         @keyframes orbWave {
           0%, 100% { transform: rotate(0deg) translateY(0); }
           50% { transform: rotate(15deg) translateY(-10px); }
+        }
+        @keyframes orbFallbackSpin {
+          from { filter: hue-rotate(0deg); }
+          to { filter: hue-rotate(40deg); }
         }
         @keyframes orbProgress {
           0% { width: 0%; }
