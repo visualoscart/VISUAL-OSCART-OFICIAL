@@ -49,6 +49,7 @@ interface ProjectContextType {
   loginTitle: string;
   loginSubtitle: string;
   isSyncing: boolean;
+  isAppReady: boolean;
   toast: { message: string; type: 'success' | 'error' | '' };
   showToast: (msg: string, type?: 'success' | 'error') => void;
   login: (email: string, pass: string) => Promise<{ success: boolean, message: string }>;
@@ -139,6 +140,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [taskRates, setTaskRates] = useState<Record<string, number>>({});
   const [financeSettings, setFinanceSettings] = useState<FinanceSettings>({ estTaxes: 0 });
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isAppReady, setIsAppReady] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | '' }>({ message: '', type: '' });
   const [celebrationQuote, setCelebrationQuote] = useState<string | null>(null);
@@ -349,7 +351,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
            }
         }
       }
-    } catch (e) { console.error("Critical Sync Failure:", e); } finally { if (!silent) setIsSyncing(false); }
+    } catch (e) { console.error("Critical Sync Failure:", e); } finally { if (!silent) { setIsSyncing(false); setIsAppReady(true); } }
   }, []);
 
   useEffect(() => {
@@ -386,7 +388,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
 
   return (
     <ProjectContext.Provider value={{
-      projects, tasks, currentUser, usersDB, receipts, expenses, expenseTracking, incomes, campaigns, performances, customerReceipts, customerQuotes, servicesCatalog, notifications, baseSalaries, taskRates, financeSettings, studioLogo, dashboardBanner, dashboardBannerTitle, dashboardBannerSubtitle, loginBackground, loginTitle, loginSubtitle, isSyncing, toast, showToast, messages, celebrationQuote, meetings, personalTasks,
+      projects, tasks, currentUser, usersDB, receipts, expenses, expenseTracking, incomes, campaigns, performances, customerReceipts, customerQuotes, servicesCatalog, notifications, baseSalaries, taskRates, financeSettings, studioLogo, dashboardBanner, dashboardBannerTitle, dashboardBannerSubtitle, loginBackground, loginTitle, loginSubtitle, isSyncing, isAppReady, toast, showToast, messages, celebrationQuote, meetings, personalTasks,
       login, logout,
       addServiceCatalogItem: async (data) => {
         try {

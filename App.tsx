@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { HashRouter as Router, Routes, Route } from 'react-router-dom';
 import { ProjectProvider, useProjects } from './context/ProjectContext';
 import Layout from './components/Layout';
@@ -15,6 +15,7 @@ import Performance from './screens/Performance';
 import Strategy from './screens/Strategy';
 import Login from './screens/Login';
 import AdminDashboard from './screens/AdminDashboard';
+import OrbLoader from './components/OrbLoader';
 
 const FaviconUpdater: React.FC = () => {
   const { studioLogo } = useProjects();
@@ -34,10 +35,22 @@ const FaviconUpdater: React.FC = () => {
   return null;
 };
 
-const App: React.FC = () => {
+/** Inner component that can read context to know when app is ready */
+const AppShell: React.FC = () => {
+  const { isAppReady } = useProjects();
+  const [loaderVisible, setLoaderVisible] = useState(true);
+
+  useEffect(() => {
+    if (isAppReady) {
+      // Small grace period so the progress bar reaches 100%
+      const t = setTimeout(() => setLoaderVisible(false), 600);
+      return () => clearTimeout(t);
+    }
+  }, [isAppReady]);
+
   return (
-    <ProjectProvider>
-      <FaviconUpdater />
+    <>
+      <OrbLoader visible={loaderVisible} />
       <Router>
         <Routes>
           <Route path="/login" element={<Login />} />
@@ -54,6 +67,15 @@ const App: React.FC = () => {
           <Route path="/admin" element={<Layout><AdminDashboard /></Layout>} />
         </Routes>
       </Router>
+    </>
+  );
+};
+
+const App: React.FC = () => {
+  return (
+    <ProjectProvider>
+      <FaviconUpdater />
+      <AppShell />
     </ProjectProvider>
   );
 };
