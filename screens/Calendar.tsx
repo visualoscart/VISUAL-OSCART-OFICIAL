@@ -29,7 +29,8 @@ const Calendar: React.FC = () => {
 
   const [taskForm, setTaskForm] = useState({
     title: '', description: '', projectId: '', collaboratorId: '', 
-    date: (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })(), driveLink: ''
+    date: (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })(), driveLink: '',
+    visibleToClient: false
   });
 
   const [editForm, setEditForm] = useState<Partial<Task>>({});
@@ -71,7 +72,8 @@ const Calendar: React.FC = () => {
       projectId: selectedBrandId !== 'all' ? selectedBrandId : '', 
       collaboratorId: '', 
       date: (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })(), 
-      driveLink: '' 
+      driveLink: '',
+      visibleToClient: false
     });
     showToast("Tarea creada");
   };
@@ -86,7 +88,8 @@ const Calendar: React.FC = () => {
           date: editForm.date,
           driveLink: editForm.driveLink,
           projectId: editForm.projectId,
-          collaboratorId: editForm.collaboratorId
+          collaboratorId: editForm.collaboratorId,
+          visibleToClient: editForm.visibleToClient
       };
       await updateTask(selectedTaskDetail.id, dataToUpdate);
       setSelectedTaskDetail(prev => prev ? ({ ...prev, ...dataToUpdate } as Task) : null);
@@ -121,7 +124,8 @@ const Calendar: React.FC = () => {
       projectId: selectedTaskDetail.projectId,
       collaboratorId: selectedTaskDetail.collaboratorId,
       date: selectedTaskDetail.date,
-      driveLink: selectedTaskDetail.driveLink || ''
+      driveLink: selectedTaskDetail.driveLink || '',
+      visibleToClient: selectedTaskDetail.visibleToClient || false
     });
     setSelectedTaskDetail(null);
     setShowModal(true);
@@ -368,7 +372,7 @@ const Calendar: React.FC = () => {
                   <label className="text-[9px] font-medium text-slate-500 uppercase px-1 tracking-widest">Socio Asignado</label>
                   <select required className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-white text-xs font-normal uppercase outline-none focus:border-primary" value={taskForm.collaboratorId} onChange={e => setTaskForm({...taskForm, collaboratorId: e.target.value})}>
                     <option value="">Seleccionar...</option>
-                    {usersDB.map(u => <option key={u.id} value={u.id}>{u.firstName} {u.lastName}</option>)}
+                    {usersDB.filter(u => !u.role?.toLowerCase().startsWith('cliente')).map(u => <option key={u.id} value={u.id}>{u.firstName} {u.lastName}</option>)}
                   </select>
                 </div>
               </div>
@@ -379,6 +383,21 @@ const Calendar: React.FC = () => {
               <div className="space-y-2">
                 <label className="text-[9px] font-medium text-slate-500 uppercase px-1 tracking-widest">Protocolo de Instrucción</label>
                 <textarea className="w-full bg-black/40 border border-white/10 rounded-2xl p-5 text-white text-sm h-32 outline-none focus:border-primary resize-none font-normal leading-relaxed" value={taskForm.description} onChange={e => setTaskForm({...taskForm, description: e.target.value})} placeholder="Detalla los requisitos maestros..." />
+              </div>
+
+              <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
+                <div className="space-y-1">
+                  <p className="text-xs font-bold text-white uppercase tracking-tight">Visible para el cliente</p>
+                  <p className="text-[9px] text-slate-500 uppercase tracking-widest">Muestra esta tarea en el calendario del portal del cliente</p>
+                </div>
+                <div 
+                  onClick={() => setTaskForm(prev => ({ ...prev, visibleToClient: !prev.visibleToClient }))}
+                  className="flex items-center gap-1.5 cursor-pointer opacity-80 hover:opacity-100 transition-all select-none"
+                >
+                  <div className={`w-6 h-6 rounded-[8px] flex items-center justify-center transition-all ${taskForm.visibleToClient ? 'bg-primary border-primary shadow-[0_0_10px_rgba(109,40,217,0.5)]' : 'bg-black/40 border border-white/20'}`}>
+                    {taskForm.visibleToClient && <span className="material-symbols-outlined text-sm text-white font-bold">check</span>}
+                  </div>
+                </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="space-y-2">
@@ -485,9 +504,34 @@ const Calendar: React.FC = () => {
                 <div className="space-y-3">
                   <label className="text-[10px] font-medium text-slate-500 uppercase tracking-widest px-1">Protocolo de Ejecución</label>
                   {isEditingDetail ? (
-                    <textarea className="w-full bg-black/40 border border-white/10 rounded-[2rem] p-8 text-white text-sm h-40 resize-none outline-none font-normal leading-relaxed" value={editForm.description ? editForm.description.replace(/\[REF:[^\]]+\]/g, '').trim() : ''} onChange={e => setEditForm({...editForm, description: e.target.value})} />
+                    <>
+                      <textarea className="w-full bg-black/40 border border-white/10 rounded-[2rem] p-8 text-white text-sm h-40 resize-none outline-none font-normal leading-relaxed" value={editForm.description ? editForm.description.replace(/\[REF:[^\]]+\]/g, '').trim() : ''} onChange={e => setEditForm({...editForm, description: e.target.value})} />
+                      
+                      <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5 mt-4">
+                        <div className="space-y-1">
+                          <p className="text-xs font-bold text-white uppercase tracking-tight">Visible para el cliente</p>
+                          <p className="text-[9px] text-slate-500 uppercase tracking-widest">Muestra esta tarea en el calendario del portal del cliente</p>
+                        </div>
+                        <div 
+                          onClick={() => setEditForm(prev => ({ ...prev, visibleToClient: !prev.visibleToClient }))}
+                          className="flex items-center gap-1.5 cursor-pointer opacity-80 hover:opacity-100 transition-all select-none"
+                        >
+                          <div className={`w-6 h-6 rounded-[8px] flex items-center justify-center transition-all ${editForm.visibleToClient ? 'bg-primary border-primary shadow-[0_0_10px_rgba(109,40,217,0.5)]' : 'bg-black/40 border border-white/20'}`}>
+                            {editForm.visibleToClient && <span className="material-symbols-outlined text-sm text-white font-bold">check</span>}
+                          </div>
+                        </div>
+                      </div>
+                    </>
                   ) : (
-                    <div className="bg-white/[0.03] p-8 rounded-[2rem] text-slate-300 text-sm font-normal border border-white/5 whitespace-pre-wrap leading-relaxed shadow-inner">"{selectedTaskDetail.description ? selectedTaskDetail.description.replace(/\[REF:[^\]]+\]/g, '').trim() : 'Sin instrucciones maestras definidas.'}"</div>
+                    <>
+                      <div className="bg-white/[0.03] p-8 rounded-[2rem] text-slate-300 text-sm font-normal border border-white/5 whitespace-pre-wrap leading-relaxed shadow-inner">"{selectedTaskDetail.description ? selectedTaskDetail.description.replace(/\[REF:[^\]]+\]/g, '').trim() : 'Sin instrucciones maestras definidas.'}"</div>
+                      
+                      <div className="flex items-center gap-2 mt-2 px-1">
+                        <span className={`text-[8px] font-black uppercase tracking-widest px-2.5 py-1.5 rounded-lg border ${selectedTaskDetail.visibleToClient ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-slate-500/10 text-slate-400 border-slate-500/20'}`}>
+                          {selectedTaskDetail.visibleToClient ? '✓ Visible para el Cliente' : '✗ Oculta para el Cliente'}
+                        </span>
+                      </div>
+                    </>
                   )}
                 </div>
 

@@ -18,6 +18,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   useEffect(() => {
     if (!currentUser && location.pathname !== '/login') {
       navigate('/login');
+    } else if (currentUser && currentUser.role?.toLowerCase().startsWith('cliente') && location.pathname !== '/client-hub') {
+      navigate('/client-hub');
     }
   }, [currentUser, navigate, location]);
 
@@ -26,6 +28,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   }, [location.pathname]);
 
   if (!currentUser && location.pathname !== '/login') return null;
+  if (currentUser && currentUser.role?.toLowerCase().startsWith('cliente') && location.pathname !== '/client-hub') return null;
 
   return (
     <div className="flex h-screen w-full bg-background-dark overflow-hidden relative">

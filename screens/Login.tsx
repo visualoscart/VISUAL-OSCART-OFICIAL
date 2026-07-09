@@ -16,7 +16,13 @@ const Login: React.FC = () => {
   const LIQUID_ART = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=1200";
 
   useEffect(() => {
-    if (currentUser) navigate('/');
+    if (currentUser) {
+      if (currentUser.role?.toLowerCase().startsWith('cliente')) {
+        navigate('/client-hub');
+      } else {
+        navigate('/');
+      }
+    }
   }, [currentUser, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -25,8 +31,7 @@ const Login: React.FC = () => {
     setIsSubmitting(true);
     try {
       const result = await login(email, password);
-      if (result.success) navigate('/');
-      else setError(result.message);
+      if (!result.success) setError(result.message);
     } catch (err) {
       setError("Fallo de conexión.");
     } finally {
@@ -52,7 +57,7 @@ const Login: React.FC = () => {
           {/* Overlay de contraste suave */}
           <div className="absolute inset-0 bg-gradient-to-t from-background-dark/90 via-primary/20 to-background-dark/40"></div>
           
-          <div className="relative z-10 p-10 h-full flex flex-col justify-between">
+          <div className="relative z-10 pt-10 px-10 pb-14 h-full flex flex-col justify-between">
             
             {/* LOGO SIN ESPACIOS (Ajuste a object-cover y sin padding interno) */}
             <div className="animate-in slide-in-from-top-6 duration-700">
@@ -63,18 +68,14 @@ const Login: React.FC = () => {
                   <span className="material-symbols-outlined text-white text-3xl">shutter_speed</span>
                 )}
               </div>
-              <div className="mt-4">
-                <span className="text-xs text-white font-black uppercase tracking-[0.5em] font-display italic opacity-60">Visual Oscart Studio</span>
-              </div>
             </div>
 
             {/* TEXTOS REDIMENSIONADOS PARA MEJOR COMPOSICIÓN */}
             <div className="animate-in fade-in slide-in-from-bottom-6 duration-700 delay-200">
-              <h1 className="text-2xl lg:text-3xl font-black text-white leading-tight uppercase tracking-tighter italic mb-4">
+              <h1 className="text-2xl lg:text-3xl font-black text-white leading-tight uppercase tracking-tighter italic mb-1.5">
                 {loginTitle}
               </h1>
-              <div className="h-0.5 w-10 bg-primary mb-4 opacity-50"></div>
-              <p className="text-white/60 text-xs font-bold uppercase tracking-[0.4em] max-w-[240px] leading-relaxed">
+              <p className="text-white/60 text-xs font-bold uppercase tracking-normal max-w-[240px] leading-relaxed">
                 {loginSubtitle}
               </p>
             </div>

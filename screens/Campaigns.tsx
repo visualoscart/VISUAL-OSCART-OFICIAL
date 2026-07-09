@@ -56,7 +56,8 @@ const Campaigns: React.FC = () => {
  date: new Date().toISOString().split('T')[0], 
  driveLink: '',
  campaignId: '',
- campaignThemeId: ''
+ campaignThemeId: '',
+ visibleToClient: false
  });
 
  // Form State
@@ -130,7 +131,8 @@ const Campaigns: React.FC = () => {
  date: new Date().toISOString().split('T')[0],
  driveLink: '',
  campaignId: editingCampaignId,
- campaignThemeId: theme.id
+ campaignThemeId: theme.id,
+ visibleToClient: false
  });
  setShowTaskModal(true);
  };
@@ -1109,7 +1111,7 @@ const Campaigns: React.FC = () => {
  <label className="text-[9px] font-black text-slate-500 uppercase px-1 tracking-widest">Socio Asignado</label>
  <select required className="w-full bg-black/40 border border-white/5 border-t-white/15/10 rounded-2xl p-4 text-white text-xs font-black uppercase outline-none focus:border-primary"value={taskForm.collaboratorId} onChange={e => setTaskForm({...taskForm, collaboratorId: e.target.value})}>
  <option value="">Seleccionar Socio...</option>
- {usersDB.map(u => <option key={u.id} value={u.id}>{u.firstName} {u.lastName}</option>)}
+ {usersDB.filter(u => !u.role?.toLowerCase().startsWith('cliente')).map(u => <option key={u.id} value={u.id}>{u.firstName} {u.lastName}</option>)}
  </select>
  </div>
  </div>
@@ -1121,6 +1123,22 @@ const Campaigns: React.FC = () => {
  <label className="text-[9px] font-black text-slate-500 uppercase px-1 tracking-widest">Protocolo de Instrucción</label>
  <textarea className="w-full bg-black/40 border border-white/5 border-t-white/15/10 rounded-2xl p-5 text-white text-sm h-32 outline-none focus:border-primary resize-none leading-relaxed"value={taskForm.description} onChange={e => setTaskForm({...taskForm, description: e.target.value})} placeholder="Instrucciones detalladas..."/>
  </div>
+
+ <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
+    <div className="space-y-1">
+      <p className="text-xs font-bold text-white uppercase tracking-tight">Visible para el cliente</p>
+      <p className="text-[9px] text-slate-500 uppercase tracking-widest">Muestra esta tarea en el calendario del portal del cliente</p>
+    </div>
+    <div 
+      onClick={() => setTaskForm(prev => ({ ...prev, visibleToClient: !prev.visibleToClient }))}
+      className="flex items-center gap-1.5 cursor-pointer opacity-80 hover:opacity-100 transition-all select-none"
+    >
+      <div className={`w-6 h-6 rounded-[8px] flex items-center justify-center transition-all ${taskForm.visibleToClient ? 'bg-primary border-primary shadow-[0_0_10px_rgba(109,40,217,0.5)]' : 'bg-black/40 border border-white/20'}`}>
+        {taskForm.visibleToClient && <span className="material-symbols-outlined text-sm text-white font-bold">check</span>}
+      </div>
+    </div>
+  </div>
+
  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
  <div className="space-y-2">
  <label className="text-[9px] font-black text-slate-500 uppercase px-1 tracking-widest">Fecha De Entrega</label>

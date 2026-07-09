@@ -185,17 +185,27 @@ const AdminDashboard: React.FC = () => {
 
   const [tempPasswords, setTempPasswords] = useState<Record<string, string>>({});
   const [newSocio, setNewSocio] = useState({ firstName: '', lastName: '', email: '', password: '', role: 'Colaborador', birthDate: '' });
+  const [userType, setUserType] = useState<'socio' | 'cliente'>('socio');
+  const [viewUserType, setViewUserType] = useState<'socio' | 'cliente'>('socio');
+  const [selectedBrandCode, setSelectedBrandCode] = useState('');
   const [isRegistering, setIsRegistering] = useState(false);
   const [newExpense, setNewExpense] = useState({ name: '', amount: '', day: '', incomeId: '', isOneTime: false });
   const [newIncome, setNewIncome] = useState({ source: '', amount: '', day: '', description: '' });
   const [deletingReceiptId, setDeletingReceiptId] = useState<string | null>(null);
   const [unlockedExpenses, setUnlockedExpenses] = useState<string[]>([]);
 
+  const getUserAvatar = (u: any) => {
+    const clientBrandCode = u.role?.toLowerCase().startsWith('cliente:') ? u.role.split(':')[1]?.trim().toUpperCase() : null;
+    const clientProjectObj = clientBrandCode ? projects.find(p => p.brandCode?.toUpperCase() === clientBrandCode || p.typography?.brandCode?.toUpperCase() === clientBrandCode) : null;
+    return (clientProjectObj && clientProjectObj.logoUrl) ? clientProjectObj.logoUrl : u.avatar;
+  };
+
   const logoInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
   const bgInputRef = useRef<HTMLInputElement>(null);
   const [localTitle, setLocalTitle] = useState(loginTitle);
   const [localSubtitle, setLocalSubtitle] = useState(loginSubtitle);
+  const [isSavingLoginTexts, setIsSavingLoginTexts] = useState(false);
   const [localBannerTitle, setLocalBannerTitle] = useState(dashboardBannerTitle);
   const [localBannerSubtitle, setLocalBannerSubtitle] = useState(dashboardBannerSubtitle);
     // CUSTOMER RECEIPTS & QUOTES STATE
@@ -280,6 +290,11 @@ const AdminDashboard: React.FC = () => {
     setLocalBannerSubtitle(dashboardBannerSubtitle);
   }, [dashboardBannerTitle, dashboardBannerSubtitle]);
 
+  useEffect(() => {
+    setLocalTitle(loginTitle);
+    setLocalSubtitle(loginSubtitle);
+  }, [loginTitle, loginSubtitle]);
+
   const getPeriodRange = (month: number, year: number, isCalendar = false) => {
     if (isCalendar) {
       // Periodo calendario: 1 al último día del mes
@@ -360,7 +375,9 @@ const AdminDashboard: React.FC = () => {
       return { name: p.name, logo: p.logoUrl, completed, pending };
     });
 
-    const byMember = usersDB.map(u => {
+    const byMember = usersDB
+      .filter(u => !u.role?.toLowerCase().startsWith('cliente'))
+      .map(u => {
       const memberTasks = periodTasks.filter(t => String(t.collaboratorId) === String(u.id));
       const completed = memberTasks.filter(t => t.status === 'Completada').length;
       const pending = memberTasks.filter(t => t.status === 'Pendiente').length;
@@ -417,18 +434,49 @@ const AdminDashboard: React.FC = () => {
     setIsSavingBanner(false);
   };
 
+  const handleSaveLoginTexts = async () => {
+    setIsSavingLoginTexts(true);
+    try {
+      await updateLoginTexts(localTitle, localSubtitle);
+      showToast("Textos de bienvenida sincronizados correctamente", "success");
+    } catch (err) {
+      console.error(err);
+      showToast("Error al sincronizar textos", "error");
+    } finally {
+      setIsSavingLoginTexts(false);
+    }
+  };
+
   const handleCreateSocio = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newSocio.firstName || !newSocio.email || !newSocio.password) {
-      showToast("Nombre, Email y Contraseña son obligatorios", "error");
-      return;
+    if (userType === 'cliente') {
+      if (!newSocio.firstName || !newSocio.email || !newSocio.password || !selectedBrandCode) {
+        showToast("Nombre de marca, Email, Contraseña y Código de Marca son obligatorios", "error");
+        return;
+      }
+    } else {
+      if (!newSocio.firstName || !newSocio.email || !newSocio.password) {
+        showToast("Nombre, Email y Contraseña son obligatorios", "error");
+        return;
+      }
     }
+
     setIsRegistering(true);
     try {
-      const result = await register(newSocio);
+      const payload = userType === 'cliente' 
+        ? {
+            ...newSocio,
+            lastName: '',
+            role: `Cliente:${selectedBrandCode.trim().toUpperCase()}`,
+            birthDate: ''
+          }
+        : newSocio;
+
+      const result = await register(payload);
       if (result.success) {
-        showToast(result.message);
+        showToast(userType === 'cliente' ? "Perfil de cliente registrado con éxito" : result.message);
         setNewSocio({ firstName: '', lastName: '', email: '', password: '', role: 'Colaborador', birthDate: '' });
+        setSelectedBrandCode('');
       } else {
         showToast(result.message, "error");
       }
@@ -519,7 +567,9 @@ const AdminDashboard: React.FC = () => {
     }
 
     // Combine paid receipts with planned payroll selections for this period
-    const plannedPayroll = usersDB.map(u => {
+    const plannedPayroll = usersDB
+        .filter(u => !u.role?.toLowerCase().startsWith('cliente'))
+        .map(u => {
         const memberPerf = performanceMetrics.byMember.find(m => String(m.id) === String(u.id));
         return {
             userId: u.id,
@@ -2723,50 +2773,160 @@ const AdminDashboard: React.FC = () => {
           {activeView === 'users' && (
             <div className="space-y-10 sm:space-y-12">
               <div className="glass-panel p-8 sm:p-12 rounded-[2.5rem] space-y-8 border border-white/5 shadow-2xl">
-                <h3 className="text-xs font-semibold text-white uppercase tracking-widest">Protocolo de Alta de Nuevos Socios</h3>
-                <form onSubmit={handleCreateSocio} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                  <div className="space-y-2">
-                    <label className="text-[9px] font-semibold text-slate-500 uppercase tracking-widest px-1">Nombre</label>
-                    <input required className="w-full bg-black/40 border border-white/5 rounded-2xl px-6 py-4 text-xs text-white outline-none font-semibold uppercase" value={newSocio.firstName} onChange={e => setNewSocio({...newSocio, firstName: e.target.value})} />
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/5 pb-6">
+                  <div>
+                    <h3 className="text-xs font-semibold text-white uppercase tracking-widest">Protocolo de Alta de Usuarios</h3>
+                    <p className="text-[9px] text-slate-500 font-semibold uppercase tracking-widest mt-1">Registra nuevos miembros o perfiles de clientes</p>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-[9px] font-semibold text-slate-500 uppercase tracking-widest px-1">Apellido</label>
-                    <input className="w-full bg-black/40 border border-white/5 rounded-2xl px-6 py-4 text-xs text-white outline-none font-semibold uppercase" value={newSocio.lastName} onChange={e => setNewSocio({...newSocio, lastName: e.target.value})} />
+                  <div className="flex bg-black/40 rounded-xl p-1 border border-white/5 w-fit">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setUserType('socio');
+                        setNewSocio({ firstName: '', lastName: '', email: '', password: '', role: 'Colaborador', birthDate: '' });
+                      }}
+                      className={`px-4 py-2 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all ${
+                        userType === 'socio' ? 'bg-primary text-white shadow-lg' : 'text-slate-500 hover:text-white'
+                      }`}
+                    >
+                      Socio / Colaborador
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setUserType('cliente');
+                        setNewSocio({ firstName: '', lastName: '', email: '', password: '', role: 'Cliente', birthDate: '' });
+                        setSelectedBrandCode('');
+                      }}
+                      className={`px-4 py-2 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all ${
+                        userType === 'cliente' ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 shadow-lg' : 'text-slate-500 hover:text-white'
+                      }`}
+                    >
+                      Perfil de Cliente
+                    </button>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-[9px] font-semibold text-slate-500 uppercase tracking-widest px-1">Email Corporativo</label>
-                    <input required type="email" className="w-full bg-black/40 border border-white/5 rounded-2xl px-6 py-4 text-xs text-white outline-none font-semibold" value={newSocio.email} onChange={e => setNewSocio({...newSocio, email: e.target.value})} />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[9px] font-semibold text-slate-500 uppercase tracking-widest px-1">Rol en el Workspace</label>
-                    <input className="w-full bg-black/40 border border-white/5 rounded-2xl px-6 py-4 text-xs text-white outline-none font-semibold uppercase" value={newSocio.role} onChange={e => setNewSocio({...newSocio, role: e.target.value})} />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[9px] font-semibold text-slate-500 uppercase tracking-widest px-1">Clave de Acceso</label>
-                    <input required className="w-full bg-black/40 border border-white/5 rounded-2xl px-6 py-4 text-xs text-white outline-none font-semibold" value={newSocio.password} onChange={e => setNewSocio({...newSocio, password: e.target.value})} />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[9px] font-semibold text-slate-500 uppercase tracking-widest px-1">Fecha Nacimiento</label>
-                    <input type="date" className="w-full bg-black/40 border border-white/5 rounded-2xl px-6 py-4 text-xs text-white outline-none" value={newSocio.birthDate} onChange={e => setNewSocio({...newSocio, birthDate: e.target.value})} />
-                  </div>
-                  <button type="submit" disabled={isRegistering} className="lg:col-span-3 mt-4 btn-premium text-white font-semibold text-xs uppercase rounded-[2rem] h-16 shadow-2xl active:scale-95 transition-all">
-                    {isRegistering ? 'Procesando Protocolo...' : 'Sincronizar Nuevo Socio al Sistema'}
+                </div>
+
+                <form onSubmit={handleCreateSocio} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 pt-2">
+                  {userType === 'socio' ? (
+                    <>
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-semibold text-slate-500 uppercase tracking-widest px-1">Nombre</label>
+                        <input required className="w-full bg-black/40 border border-white/5 rounded-2xl px-6 py-4 text-xs text-white outline-none font-semibold uppercase" value={newSocio.firstName} onChange={e => setNewSocio({...newSocio, firstName: e.target.value})} />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-semibold text-slate-500 uppercase tracking-widest px-1">Apellido</label>
+                        <input className="w-full bg-black/40 border border-white/5 rounded-2xl px-6 py-4 text-xs text-white outline-none font-semibold uppercase" value={newSocio.lastName} onChange={e => setNewSocio({...newSocio, lastName: e.target.value})} />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-semibold text-slate-500 uppercase tracking-widest px-1">Email Corporativo</label>
+                        <input required type="email" className="w-full bg-black/40 border border-white/5 rounded-2xl px-6 py-4 text-xs text-white outline-none font-semibold" value={newSocio.email} onChange={e => setNewSocio({...newSocio, email: e.target.value})} />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-semibold text-slate-500 uppercase tracking-widest px-1">Rol en el Workspace</label>
+                        <input className="w-full bg-black/40 border border-white/5 rounded-2xl px-6 py-4 text-xs text-white outline-none font-semibold uppercase" value={newSocio.role} onChange={e => setNewSocio({...newSocio, role: e.target.value})} />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-semibold text-slate-500 uppercase tracking-widest px-1">Clave de Acceso</label>
+                        <input required className="w-full bg-black/40 border border-white/5 rounded-2xl px-6 py-4 text-xs text-white outline-none font-semibold" value={newSocio.password} onChange={e => setNewSocio({...newSocio, password: e.target.value})} />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-semibold text-slate-500 uppercase tracking-widest px-1">Fecha Nacimiento</label>
+                        <input type="date" className="w-full bg-black/40 border border-white/5 rounded-2xl px-6 py-4 text-xs text-white outline-none" value={newSocio.birthDate} onChange={e => setNewSocio({...newSocio, birthDate: e.target.value})} />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-semibold text-slate-500 uppercase tracking-widest px-1">Nombre de la Marca</label>
+                        <input required className="w-full bg-black/40 border border-white/5 rounded-2xl px-6 py-4 text-xs text-white outline-none font-semibold uppercase" value={newSocio.firstName} onChange={e => setNewSocio({...newSocio, firstName: e.target.value})} placeholder="EJ: COCA COLA" />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-semibold text-slate-500 uppercase tracking-widest px-1">Email del Cliente</label>
+                        <input required type="email" className="w-full bg-black/40 border border-white/5 rounded-2xl px-6 py-4 text-xs text-white outline-none font-semibold" value={newSocio.email} onChange={e => setNewSocio({...newSocio, email: e.target.value})} placeholder="cliente@marca.com" />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-semibold text-slate-500 uppercase tracking-widest px-1">Clave de Acceso</label>
+                        <input required className="w-full bg-black/40 border border-white/5 rounded-2xl px-6 py-4 text-xs text-white outline-none font-semibold" value={newSocio.password} onChange={e => setNewSocio({...newSocio, password: e.target.value})} placeholder="••••••••" />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-semibold text-slate-500 uppercase tracking-widest px-1">Vincular Proyecto Existente</label>
+                        <select
+                          className="w-full bg-black/40 border border-white/5 rounded-2xl px-6 py-4 text-xs text-white outline-none font-semibold"
+                          value={selectedBrandCode}
+                          onChange={e => setSelectedBrandCode(e.target.value)}
+                        >
+                          <option value="">-- SELECCIONAR MARCA --</option>
+                          {projects.map(p => {
+                            const code = (p.brandCode || p.typography?.brandCode || '').toUpperCase();
+                            return (
+                              <option key={p.id} value={code}>
+                                {p.name} ({code || 'SIN CÓDIGO'})
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-semibold text-slate-500 uppercase tracking-widest px-1">Código de Marca (Link)</label>
+                        <input required className="w-full bg-black/40 border border-white/5 rounded-2xl px-6 py-4 text-xs text-white outline-none font-semibold uppercase font-mono" value={selectedBrandCode} onChange={e => setSelectedBrandCode(e.target.value)} placeholder="EJ: COCA" />
+                      </div>
+                    </>
+                  )}
+                  <button type="submit" disabled={isRegistering} className={`lg:col-span-3 mt-4 btn-premium text-white font-semibold text-xs uppercase rounded-[2rem] h-16 shadow-2xl active:scale-95 transition-all ${userType === 'cliente' ? 'border-t border-cyan-500/20 shadow-cyan-500/5' : ''}`}>
+                    {isRegistering 
+                      ? 'Procesando Protocolo...' 
+                      : userType === 'socio' 
+                        ? 'Sincronizar Nuevo Socio al Sistema' 
+                        : 'Crear Perfil de Cliente e Iniciar Protocolo'
+                    }
                   </button>
                 </form>
               </div>
               
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex bg-white/5 p-1.5 rounded-2xl border border-white/5">
+                  <button 
+                    type="button"
+                    onClick={() => setViewUserType('socio')} 
+                    className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer ${viewUserType === 'socio' ? 'bg-primary text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}
+                  >
+                    Socios y Colaboradores
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => setViewUserType('cliente')} 
+                    className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer ${viewUserType === 'cliente' ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/10' : 'text-slate-500 hover:text-white'}`}
+                  >
+                    Perfiles de Clientes
+                  </button>
+                </div>
+              </div>
+
               <div className="glass-panel rounded-[2.5rem] overflow-hidden border border-white/5 shadow-2xl">
-                 <table className="w-full text-left">
-                    <thead className="bg-white/5 text-[9px] uppercase text-slate-600 font-semibold tracking-widest border-b border-white/5">
-                      <tr><th className="px-8 py-5">Identidad del Socio</th><th className="px-8 py-5">Gestión de Claves</th><th className="px-8 py-5 text-right">Administración</th></tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/5 text-sm">
-                      {usersDB.map(u => (
+                  <table className="w-full text-left">
+                     <thead className="bg-white/5 text-[9px] uppercase text-slate-600 font-semibold tracking-widest border-b border-white/5">
+                       <tr><th className="px-8 py-5">{viewUserType === 'cliente' ? 'Identidad del Cliente' : 'Identidad del Socio'}</th><th className="px-8 py-5">Gestión de Claves</th><th className="px-8 py-5 text-right">Administración</th></tr>
+                     </thead>
+                     <tbody className="divide-y divide-white/5 text-sm">
+                       {usersDB.filter(u => {
+                         const isClient = u.role?.toLowerCase().startsWith('cliente');
+                         return viewUserType === 'cliente' ? isClient : !isClient;
+                       }).map(u => (
                         <tr key={u.id} className="hover:bg-white/[0.02] group transition-colors">
                           <td className="px-8 py-6 flex items-center gap-5">
-                            <img src={u.avatar} className="w-12 h-12 rounded-2xl object-cover shadow-xl border border-white/10" />
+                            <img src={getUserAvatar(u)} className="w-12 h-12 rounded-2xl object-cover shadow-xl border border-white/10" />
                             <div>
-                               <span className="font-semibold text-white uppercase tracking-tight block">{u.firstName} {u.lastName}</span>
+                               <div className="flex items-center gap-3">
+                                 <span className="font-semibold text-white uppercase tracking-tight block">{u.firstName} {u.lastName}</span>
+                                 <span className={`text-[8px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${
+                                   u.role?.toLowerCase().startsWith('cliente') 
+                                     ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20 shadow-lg shadow-cyan-500/5' 
+                                     : 'bg-primary/10 text-primary border-primary/20'
+                                 }`}>
+                                   {u.role}
+                                 </span>
+                               </div>
                                <span className="text-[9px] text-slate-500 font-semibold uppercase tracking-widest">{u.email}</span>
                             </div>
                           </td>
@@ -2890,7 +3050,7 @@ const AdminDashboard: React.FC = () => {
                         <textarea className="w-full bg-black/40 border border-white/5 rounded-2xl p-4 text-slate-500 text-xs font-semibold uppercase outline-none focus:border-primary/20 h-24 resize-none shadow-inner" value={localSubtitle} onChange={e => setLocalSubtitle(e.target.value)} />
                       </div>
                     </div>
-                    <button onClick={() => updateLoginTexts(localTitle, localSubtitle)} className="w-full py-4 mt-4 bg-primary text-white font-semibold rounded-2xl uppercase text-[10px] tracking-widest hover:brightness-110 shadow-2xl active:scale-95 transition-all">Sincronizar Textos Maestros</button>
+                    <button onClick={handleSaveLoginTexts} disabled={isSavingLoginTexts} className="w-full py-4 mt-4 bg-primary text-white font-semibold rounded-2xl uppercase text-[10px] tracking-widest hover:brightness-110 shadow-2xl active:scale-95 transition-all">{isSavingLoginTexts ? 'Sincronizando...' : 'Sincronizar Textos Maestros'}</button>
                   </div>
                </div>
             </div>

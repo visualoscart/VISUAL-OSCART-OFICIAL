@@ -16,6 +16,7 @@ import Strategy from './screens/Strategy';
 import Login from './screens/Login';
 import AdminDashboard from './screens/AdminDashboard';
 import OrbLoader from './components/OrbLoader';
+import ClientHub from './screens/ClientHub';
 
 const FaviconUpdater: React.FC = () => {
   const { studioLogo } = useProjects();
@@ -65,6 +66,7 @@ const AppShell: React.FC = () => {
           <Route path="/users" element={<Layout><Team /></Layout>} />
           <Route path="/achievements" element={<Layout><Achievements /></Layout>} />
           <Route path="/admin" element={<Layout><AdminDashboard /></Layout>} />
+          <Route path="/client-hub" element={<ClientHub />} />
         </Routes>
       </Router>
     </>

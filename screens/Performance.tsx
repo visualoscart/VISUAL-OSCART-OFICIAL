@@ -158,11 +158,11 @@ const Performance: React.FC = () => {
  });
  };
  const [executiveSummary, setExecutiveSummary] = useState('');
- const [bestPosts, setBestPosts] = useState<{ title: string; reach: number; reactions: number; imageUrl?: string }[]>([
- { title: '', reach: 0, reactions: 0 },
- { title: '', reach: 0, reactions: 0 },
- { title: '', reach: 0, reactions: 0 }
- ]);
+ const [bestPosts, setBestPosts] = useState<{ title: string; reach: number; reactions: number; imageUrl?: string; postUrl?: string; }[]>([
+  { title: '', reach: 0, reactions: 0 },
+  { title: '', reach: 0, reactions: 0 },
+  { title: '', reach: 0, reactions: 0 }
+]);
  const [extraWorks, setExtraWorks] = useState<{ description: string; date: string }[]>([]);
  const [isDownloading, setIsDownloading] = useState(false);
 
@@ -356,7 +356,7 @@ const Performance: React.FC = () => {
  manualPostsCount: autoData.posts,
  manualProductionsCount: autoData.productions,
  executiveSummary: executiveSummary,
- bestPosts: bestPosts.filter(p => p.title || p.reach || p.reactions),
+ bestPosts: bestPosts.filter(p => p.title || p.reach || p.reactions || p.postUrl),
  demographics: demographics
  };
 
@@ -1005,6 +1005,20 @@ const Performance: React.FC = () => {
  />
  </div>
  </div>
+ <div className="space-y-3">
+ <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.15em] px-1">Enlace del Post (Opcional)</label>
+ <input 
+ type="text"
+ placeholder="https://..."
+ value={bestPosts[idx]?.postUrl || ''}
+ onChange={(e) => {
+ const next = [...bestPosts];
+ next[idx] = { ...next[idx], postUrl: e.target.value };
+ setBestPosts(next);
+ }}
+ className="w-full bg-background-dark/30 border border-white/5 border-t-white/15/5 rounded-xl p-4 text-white text-xs font-bold"
+ />
+ </div>
  </div>
  </div>
  ))}
@@ -1285,7 +1299,7 @@ const Performance: React.FC = () => {
  </div>
 
  {/* TOP CONTENT (HORIZONTAL 3-COLUMN, IMAGE LEFT DATA RIGHT) */}
- {bestPosts.some(p => p.title || p.reach || p.reactions) && (
+ {bestPosts.some(p => p.title || p.reach || p.reactions || p.postUrl) && (
  <div className="space-y-10">
  <div className="flex items-center justify-between border-b border-white/10 pb-4">
  <h3 className="text-3xl font-black text-slate-100 uppercase tracking-tighter">CONTENIDO DE ALTO IMPACTO</h3>
@@ -1293,7 +1307,7 @@ const Performance: React.FC = () => {
  </div>
  
  <div className="grid grid-cols-3 gap-6">
- {bestPosts.filter(p => p.title || p.reach || p.reactions).map((post, i) => (
+ {bestPosts.filter(p => p.title || p.reach || p.reactions || p.postUrl).map((post, i) => (
  <div key={i} className="flex flex-col bg-gradient-to-br from-[#363636] to-[#2a2a2a] shadow-xl shadow-black/40 p-5 rounded-2xl border border-white/5 border-t-white/15">
  <div className="flex gap-4 items-center">
  <div className="aspect-[4/5] w-20 bg-[#202020] relative overflow-hidden border border-white/5 border-t-white/15 rounded-lg flex-shrink-0">
@@ -1314,6 +1328,18 @@ const Performance: React.FC = () => {
  </div>
  </div>
  </div>
+ {post.postUrl && (
+ <div className="mt-4 pt-3 border-t border-white/5">
+ <a 
+ href={post.postUrl} 
+ target="_blank" 
+ rel="noopener noreferrer" 
+ className="w-full py-2 bg-white/5 hover:bg-primary hover:text-white rounded-xl text-[8px] font-black uppercase tracking-widest flex items-center justify-center gap-1 transition-all text-slate-400"
+ >
+ <span className="material-symbols-outlined text-[10px]">open_in_new</span> Ver Publicación
+ </a>
+ </div>
+ )}
  </div>
  ))}
  </div>

@@ -13,6 +13,19 @@ interface Notification {
   createdAt: string;
 }
 
+const getDirectDriveUrl = (url: string | undefined): string => {
+  if (!url) return '';
+  const fileDMatch = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (fileDMatch && fileDMatch[1]) {
+    return `https://lh3.googleusercontent.com/d/${fileDMatch[1]}`;
+  }
+  const idMatch = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (idMatch && idMatch[1]) {
+    return `https://lh3.googleusercontent.com/d/${idMatch[1]}`;
+  }
+  return url;
+};
+
 interface FinanceSettings {
   estTaxes: number;
   taxLinks?: Record<string, string>; // "MM-YYYY" -> incomeId
@@ -294,14 +307,19 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
           validProjects.push({
             id: p.id, name: p.name, niche: p.niche, client: p.client,
             date: p.date, status: p.status, progress: p.progress,
-            logoUrl: p.logo_url, brandManualUrl: p.brand_manual_url,
+            logoUrl: getDirectDriveUrl(p.logo_url), brandManualUrl: p.brand_manual_url,
             brandCode: p.typography?.brandCode,
             brief: p.brief, hell: p.hell, heaven: p.heaven,
             monthlyFee: Number(p.monthly_fee), textRepository: p.text_repository || [],
             mediaRepository: p.media_repository || [], brandColors: p.brand_colors || [],
-            typography: p.typography || undefined,
+            typography: p.typography ? {
+              ...p.typography,
+              coverUrl: getDirectDriveUrl(p.typography.coverUrl)
+            } : undefined,
             driveFolderId: p.typography?.driveFolderId,
-            collaborators: p.collaborators || []
+            collaborators: p.collaborators || [],
+            mediaClassifications: p.typography?.mediaClassifications || [],
+            coverUrl: getDirectDriveUrl(p.typography?.coverUrl || '')
           });
         }
         setProjects(validProjects);
@@ -311,7 +329,14 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
         setTasks(tRes.data.map(t => {
           let campaignId = undefined;
           let campaignThemeId = undefined;
+          let visibleToClient = false;
           let cleanDescription = t.description || '';
+
+          if (cleanDescription.includes('[CLIENT_VISIBLE]')) {
+            visibleToClient = true;
+            cleanDescription = cleanDescription.replace('[CLIENT_VISIBLE]', '').trim();
+          }
+
           const refMatch = cleanDescription.match(/\[REF:(camp-[^:]+):(theme-[^\]]+)\]/);
           if (refMatch) {
             campaignId = refMatch[1];
@@ -322,7 +347,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
             id: t.id, projectId: t.project_id, collaboratorId: t.collaborator_id,
             title: t.title, description: cleanDescription, date: t.date,
             status: t.status, driveLink: t.drive_link, createdAt: t.created_at,
-            completedAt: t.completed_at, campaignId, campaignThemeId
+            completedAt: t.completed_at, campaignId, campaignThemeId, visibleToClient
           };
         }));
       }
@@ -729,6 +754,24 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
            // If d.brandCode was also set, it's already in payload.typography from logic above
         }
         
+        if (d.mediaClassifications !== undefined) {
+           const existingProj = projects.find(p => String(p.id) === String(id));
+           payload.typography = {
+             ...(payload.typography || existingProj?.typography || {}),
+             mediaClassifications: d.mediaClassifications
+           };
+           delete payload.mediaClassifications;
+        }
+        
+        if (d.coverUrl !== undefined) {
+           const existingProj = projects.find(p => String(p.id) === String(id));
+           payload.typography = {
+             ...(payload.typography || existingProj?.typography || {}),
+             coverUrl: d.coverUrl
+           };
+           delete payload.coverUrl;
+        }
+        
         const { error } = await supabase.from('projects').update(payload).eq('id', id); 
         if (error) {
           console.error("Update Project Error:", error);
@@ -905,8 +948,11 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
         }
       },
       addTask: async (data) => {
-        // Embed campaign metadata in description for relation tracking since we don't have columns
+        // Embed campaign metadata and client visibility in description for relation tracking since we don't have columns
         let finalDescription = data.description;
+        if (data.visibleToClient) {
+          finalDescription += '\n\n[CLIENT_VISIBLE]';
+        }
         if (data.campaignId && data.campaignThemeId) {
           finalDescription += `\n\n[REF:${data.campaignId}:${data.campaignThemeId}]`;
         }
@@ -940,13 +986,20 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
         if (d.driveLink !== undefined) { mapped.drive_link = d.driveLink; delete mapped.driveLink; }
         if (d.completedAt) { mapped.completed_at = d.completedAt; delete mapped.completedAt; }
         
-        // We cannot store campaignId/ThemeId in the tasks table as columns don't exist
+        // We cannot store campaignId/ThemeId or visibleToClient in the tasks table as columns don't exist
         delete mapped.campaignId;
         delete mapped.campaignThemeId;
+        delete mapped.visibleToClient;
         
         if (d.title !== undefined) mapped.title = d.title;
-        if (d.description !== undefined) {
-          let finalDesc = d.description;
+        if (d.description !== undefined || d.visibleToClient !== undefined) {
+          let finalDesc = d.description !== undefined ? d.description : (t?.description || '');
+          const isVisible = d.visibleToClient !== undefined ? d.visibleToClient : (t?.visibleToClient || false);
+          
+          finalDesc = finalDesc.replace('[CLIENT_VISIBLE]', '').trim();
+          if (isVisible) {
+            finalDesc += '\n\n[CLIENT_VISIBLE]';
+          }
           if (oldRefMatch && !finalDesc.match(/\[REF:/)) {
             finalDesc += `\n\n${oldRefMatch[0]}`;
           }
@@ -1117,22 +1170,42 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
         if (!error) { fetchData(true); return { success: true, message: 'Socio Registrado' }; }
         return { success: false, message: 'Error de SQL' };
       },
-      updateStudioLogo: async (v) => { await supabase.from('settings').upsert({key: 'studioLogo', value: v}); fetchData(true); },
-      updateDashboardBanner: async (v) => { await supabase.from('settings').upsert({key: 'dashboardBanner', value: v}); fetchData(true); },
+      updateStudioLogo: async (v) => { 
+        await supabase.from('settings').upsert({key: 'studioLogo', value: v}); 
+        setStudioLogo(v);
+        await fetchCritical(); 
+      },
+      updateDashboardBanner: async (v) => { 
+        await supabase.from('settings').upsert({key: 'dashboardBanner', value: v}); 
+        setDashboardBanner(v);
+        await fetchCritical(); 
+      },
       updateDashboardBannerTexts: async (t, s) => { 
         try {
           await Promise.all([
             supabase.from('settings').upsert({key: 'dashboardBannerTitle', value: t}),
             supabase.from('settings').upsert({key: 'dashboardBannerSubtitle', value: s})
           ]);
-          await fetchData(true);
+          setDashboardBannerTitle(t);
+          setDashboardBannerSubtitle(s);
+          await fetchCritical();
           showToast("Textos del banner actualizados");
         } catch (e) {
           showToast("Error al guardar textos", "error");
         }
       },
-      updateLoginBackground: async (v) => { await supabase.from('settings').upsert({key: 'loginBackground', value: v}); fetchData(true); },
-      updateLoginTexts: async (t, s) => { await supabase.from('settings').upsert({key: 'loginTitle', value: t}); await supabase.from('settings').upsert({key: 'loginSubtitle', value: s}); fetchData(true); },
+      updateLoginBackground: async (v) => { 
+        await supabase.from('settings').upsert({key: 'loginBackground', value: v}); 
+        setLoginBackground(v);
+        await fetchCritical(); 
+      },
+      updateLoginTexts: async (t, s) => { 
+        await supabase.from('settings').upsert({key: 'loginTitle', value: t}); 
+        await supabase.from('settings').upsert({key: 'loginSubtitle', value: s}); 
+        setLoginTitle(t);
+        setLoginSubtitle(s);
+        await fetchCritical(); 
+      },
       addMeeting: async (data) => {
         try {
           const newMeeting: Meeting = {

@@ -8,7 +8,7 @@ import { createBrandFolder, uploadFileResumable, createSubFolder } from '../lib/
 const ProjectDetail: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { projects, usersDB, updateProject, addMediaAsset, deleteMediaAsset, addTextAsset, deleteTextAsset, showToast } = useProjects();
+  const { projects, usersDB, updateProject, addMediaAsset, deleteMediaAsset, addTextAsset, deleteTextAsset, showToast, currentUser } = useProjects();
   
   const project = projects.find(p => String(p.id) === String(id));
   
@@ -27,7 +27,9 @@ const ProjectDetail: React.FC = () => {
     brandCode: '',
     brandColors: [] as string[], 
     brandManualUrl: '',
+    coverUrl: '',
     typography: {
+
       titles: { name: '', url: '' as string | undefined },
       subtitles: { name: '', url: '' as string | undefined },
       body: { name: '', url: '' as string | undefined }
@@ -44,6 +46,19 @@ const ProjectDetail: React.FC = () => {
   
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Estados para clasificaciones de activos digitales
+  const [selectedClassification, setSelectedClassification] = useState<string>('Todos');
+  const [isAddingClassification, setIsAddingClassification] = useState(false);
+  const [newClassificationName, setNewClassificationName] = useState('');
+  const [newMediaAssetClassification, setNewMediaAssetClassification] = useState('');
+  const [showEditMediaModal, setShowEditMediaModal] = useState(false);
+  const [editingMediaAsset, setEditingMediaAsset] = useState<any>(null);
+  const [editMediaName, setEditMediaName] = useState('');
+  const [editMediaClassification, setEditMediaClassification] = useState('');
+
+  const isDirectorCreativo = currentUser?.role === 'Director Creativo' || 
+    currentUser?.role?.toLowerCase().includes('director creativo');
+
   useEffect(() => {
     if (project) {
       const projTypo = project.typography;
@@ -54,6 +69,7 @@ const ProjectDetail: React.FC = () => {
         brandCode: project.brandCode || '',
         brandColors: project.brandColors || ['#8c2bee', '#f97316'],
         brandManualUrl: project.brandManualUrl || '',
+        coverUrl: project.coverUrl || project.typography?.coverUrl || '',
         typography: {
           titles: { name: projTypo?.titles?.name || '', url: projTypo?.titles?.url },
           subtitles: { name: projTypo?.subtitles?.name || '', url: projTypo?.subtitles?.url },
@@ -130,12 +146,34 @@ const ProjectDetail: React.FC = () => {
     try {
       await addMediaAsset(project.id, { 
         ...newMediaLink, 
-        size: 'Vínculo Externo' 
+        size: 'Vínculo Externo',
+        classification: newMediaAssetClassification || undefined
       });
       setShowMediaLinkModal(false);
       setNewMediaLink({ name: '', url: '', type: 'Imagen', platform: 'Drive' });
+      setNewMediaAssetClassification('');
+      setNewMediaAssetClassification('');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleUploadCoverImage = async (file: File) => {
+    if (!project || !file) return;
+    setIsUploadingAdn(prev => ({ ...prev, cover: true }));
+    setAdnUploadProgress(prev => ({ ...prev, cover: 0 }));
+    try {
+      const resourcesFolderId = await createBrandFolder(`${project.name} - Recursos`);
+      const coverFolderId = await createSubFolder("Portada", resourcesFolderId);
+      const { url } = await uploadFileResumable(file, coverFolderId, (prog) => {
+         setAdnUploadProgress(prev => ({ ...prev, cover: prog }));
+      });
+      setEditAdnForm(prev => ({ ...prev, coverUrl: url }));
+      showToast("Imagen de portada subida exitosamente", "success");
+    } catch (e: any) {
+      showToast("Error al subir portada: " + e.message, "error");
+    } finally {
+      setIsUploadingAdn(prev => ({ ...prev, cover: false }));
     }
   };
 
@@ -201,11 +239,14 @@ const ProjectDetail: React.FC = () => {
         platform: 'Drive',
         size: `${(uploadFile.size / 1024 / 1024).toFixed(2)} MB`,
         fileId,
-        previewUrl
+        previewUrl,
+        classification: newMediaAssetClassification || undefined
       });
       setShowMediaLinkModal(false);
       setUploadFile(null);
       setNewMediaLink({ name: '', url: '', type: 'Imagen', platform: 'Drive' });
+      setNewMediaAssetClassification('');
+      setNewMediaAssetClassification('');
       showToast("Activo subido exitosamente", "success");
     } catch (e: any) {
       showToast("Error al subir: " + e.message, "error");
@@ -228,6 +269,90 @@ const ProjectDetail: React.FC = () => {
       setIsCreatingFolder(false);
     }
   };
+
+  const handleCreateClassification = async () => {
+    if (!isDirectorCreativo) {
+      showToast("Acceso denegado. Solo el Director Creativo puede crear clasificaciones.", "error");
+      return;
+    }
+    if (!project || !newClassificationName.trim()) return;
+    const currentList = project.mediaClassifications || [];
+    const name = newClassificationName.trim();
+    if (currentList.some(c => c.toLowerCase() === name.toLowerCase())) {
+      showToast("Esta clasificación ya existe", "error");
+      return;
+    }
+    const nextList = [...currentList, name];
+    await updateProject(project.id, { mediaClassifications: nextList });
+    setNewClassificationName('');
+    setIsAddingClassification(false);
+    showToast("Clasificación creada", "success");
+  };
+
+  const handleDeleteClassification = async (name: string) => {
+    if (!isDirectorCreativo) {
+      showToast("Acceso denegado. Solo el Director Creativo puede eliminar clasificaciones.", "error");
+      return;
+    }
+    if (!project) return;
+    if (!window.confirm(`¿Estás seguro de eliminar la clasificación "${name}"? Esto no borrará tus activos, solo les quitará la categoría.`)) return;
+    const nextList = (project.mediaClassifications || []).filter(c => c !== name);
+    const updatedMedia = (project.mediaRepository || []).map(asset => {
+      if (asset.classification === name) {
+        const { classification, ...rest } = asset;
+        return rest;
+      }
+      return asset;
+    });
+    await updateProject(project.id, { 
+      mediaClassifications: nextList,
+      mediaRepository: updatedMedia
+    });
+    if (selectedClassification === name) {
+      setSelectedClassification('Todos');
+    }
+    showToast("Clasificación eliminada", "success");
+  };
+
+  const handleOpenEditMediaModal = (asset: any) => {
+    if (!isDirectorCreativo) {
+      showToast("Acceso denegado. Solo el Director Creativo puede editar activos.", "error");
+      return;
+    }
+    setEditingMediaAsset(asset);
+    setEditMediaName(asset.name);
+    setEditMediaClassification(asset.classification || '');
+    setShowEditMediaModal(true);
+  };
+
+  const handleSaveEditMedia = async () => {
+    if (!isDirectorCreativo) {
+      showToast("Acceso denegado. Solo el Director Creativo puede editar activos.", "error");
+      return;
+    }
+    if (!project || !editingMediaAsset) return;
+    setIsSubmitting(true);
+    try {
+      const updatedMedia = (project.mediaRepository || []).map(m => {
+        if (m.id === editingMediaAsset.id) {
+          return {
+            ...m,
+            name: editMediaName,
+            classification: editMediaClassification || undefined
+          };
+        }
+        return m;
+      });
+      await updateProject(project.id, { mediaRepository: updatedMedia });
+      setShowEditMediaModal(false);
+      setEditingMediaAsset(null);
+      showToast("Activo actualizado correctamente", "success");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+
 
   const copyToClipboard = (text: string) => {
       navigator.clipboard.writeText(text);
@@ -421,7 +546,7 @@ const ProjectDetail: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-                <div className="lg:col-span-8 glass-panel p-10 rounded-[3rem] border border-white/5 space-y-10 hover:border-primary/20 hover:shadow-xl transition-all duration-500">
+                <div className="lg:col-span-6 glass-panel p-10 rounded-[3rem] border border-white/5 space-y-10 hover:border-primary/20 hover:shadow-xl transition-all duration-500">
                   <div className="flex justify-between items-center">
                     <h3 className="text-[10px] font-black uppercase text-primary tracking-[0.2em] ">Identidad de Color</h3>
                     {isEditingAdn && (
@@ -457,7 +582,7 @@ const ProjectDetail: React.FC = () => {
                     ))}
                   </div>
                 </div>
-                <div className="lg:col-span-4 glass-panel p-10 rounded-[3rem] border border-white/5 flex flex-col justify-center items-center text-center space-y-8 hover:border-primary/20 hover:shadow-xl transition-all duration-500">
+                <div className="lg:col-span-3 glass-panel p-10 rounded-[3rem] border border-white/5 flex flex-col justify-center items-center text-center space-y-8 hover:border-primary/20 hover:shadow-xl transition-all duration-500">
                    <div className="w-16 h-16 bg-primary/10 rounded-[2rem] flex items-center justify-center text-primary border border-primary/20 shadow-2xl">
                      <span className="material-symbols-outlined text-2xl">menu_book</span>
                    </div>
@@ -491,6 +616,46 @@ const ProjectDetail: React.FC = () => {
                        </a>
                      )
                    )}
+                </div>
+
+                <div className="lg:col-span-3 glass-panel p-10 rounded-[3rem] border border-white/5 flex flex-col justify-center items-center text-center space-y-8 hover:border-primary/20 hover:shadow-xl transition-all duration-500">
+                    <div className="w-16 h-16 bg-primary/10 rounded-[2rem] flex items-center justify-center text-primary border border-primary/20 shadow-2xl overflow-hidden relative">
+                      {editAdnForm.coverUrl || project.coverUrl ? (
+                        <img src={editAdnForm.coverUrl || project.coverUrl} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="material-symbols-outlined text-2xl">image</span>
+                      )}
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-black text-white uppercase tracking-tighter ">Portada de Marca</h3>
+                      <p className="text-[8px] text-slate-500 font-bold uppercase mt-1 opacity-60">Cabecera de Portal de Cliente</p>
+                    </div>
+                    {isEditingAdn ? (
+                      <div className="w-full space-y-2">
+                         <div className="flex gap-2">
+                            <input type="text" className="flex-1 bg-black/40 border border-white/5 rounded-2xl p-4 text-white text-[10px] outline-none " value={editAdnForm.coverUrl} onChange={e => setEditAdnForm({...editAdnForm, coverUrl: e.target.value})} placeholder="URL de Portada..." disabled={isUploadingAdn['cover']} />
+                            <label className={`w-12 shrink-0 rounded-2xl flex items-center justify-center transition-all cursor-pointer border ${isUploadingAdn['cover'] ? 'bg-primary/20 border-primary/30' : 'bg-white/5 border-white/10 hover:bg-primary hover:text-white text-slate-400'}`}>
+                              <input type="file" className="hidden" onChange={(e) => { if(e.target.files?.[0]) handleUploadCoverImage(e.target.files[0]); }} disabled={isUploadingAdn['cover']} accept="image/*" />
+                              {isUploadingAdn['cover'] ? (
+                                <span className="text-[9px] font-black text-primary">{adnUploadProgress['cover'] || 0}%</span>
+                              ) : (
+                                <span className="material-symbols-outlined text-lg">cloud_upload</span>
+                              )}
+                            </label>
+                         </div>
+                         {isUploadingAdn['cover'] && (
+                           <div className="w-full bg-white/5 h-1 rounded-full overflow-hidden">
+                             <div className="h-full bg-primary transition-all duration-300" style={{ width: `${adnUploadProgress['cover']}%` }}></div>
+                           </div>
+                         )}
+                      </div>
+                    ) : (
+                      (project.coverUrl || project.typography?.coverUrl) && (
+                        <a href={project.coverUrl || project.typography?.coverUrl} target="_blank" rel="noreferrer" className="w-full py-4 bg-primary text-white font-black text-[10px] uppercase rounded-2xl shadow-2xl flex items-center justify-center gap-3 hover:scale-105 active:scale-95 transition-all">
+                          <span className="material-symbols-outlined text-xs">open_in_new</span> Ver Portada
+                        </a>
+                      )
+                    )}
                 </div>
               </div>
 
@@ -613,48 +778,139 @@ const ProjectDetail: React.FC = () => {
                     ))}
                  </div>
                ) : (
-                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {(project.mediaRepository || []).map((asset, idx) => (
-                      <div 
-                        key={asset.id} 
-                        className="glass-panel rounded-3xl p-6 border border-white/5 hover:border-primary/40 transition-all group flex items-center gap-6 relative overflow-hidden bg-[#08070b]/60 shadow-xl"
-                        style={{ animationDelay: `${idx*50}ms` }}
-                      >
-                        <div className="relative w-16 h-16 shrink-0 flex items-center justify-center">
-                          <div className="absolute inset-0 bg-primary/10 blur-xl rounded-full scale-125 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                          <div className="w-full h-full bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center relative z-10 transition-transform group-hover:scale-110">
-                             <span className={`material-symbols-outlined text-3xl ${asset.type === 'Imagen' ? 'text-primary' : asset.type === 'Video' ? 'text-accent-orange' : 'text-blue-400'}`}>
-                                {asset.type === 'Imagen' ? 'frame_inspect' : asset.type === 'Video' ? 'movie_filter' : 'deployed_code'}
-                             </span>
-                          </div>
-                        </div>
+                 <div className="space-y-6">
+                   {/* Barra de Clasificaciones */}
+                   <div className="flex flex-wrap items-center gap-3 bg-white/[0.01] border border-white/5 p-4 rounded-3xl">
+                     <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest mr-2">Categorías:</span>
+                     
+                     <button
+                       onClick={() => setSelectedClassification('Todos')}
+                       className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                         selectedClassification === 'Todos'
+                           ? 'bg-primary text-white shadow-lg font-black'
+                           : 'bg-white/5 text-slate-400 hover:text-white border border-white/5 font-black'
+                       }`}
+                     >
+                       Todos
+                     </button>
 
-                        <div className="flex-1 min-w-0">
-                          <h4 className="text-white font-black text-xs uppercase tracking-[0.05em] truncate mb-1 group-hover:text-primary transition-colors">{asset.name}</h4>
-                          <div className="flex items-center gap-2">
-                             <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest bg-white/5 px-2 py-0.5 rounded-md border border-white/5">RECURSO DE MARCA</span>
-                             <span className="text-[8px] font-mono text-slate-700 uppercase">{asset.size || 'Vínculo'}</span>
-                          </div>
-                        </div>
-
-                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-all translate-x-4 group-hover:translate-x-0">
-                           <a 
-                            href={asset.url} 
-                            target="_blank" 
-                            rel="noreferrer" 
-                            className="w-10 h-10 bg-primary text-white rounded-xl shadow-lg flex items-center justify-center hover:scale-110 transition-transform active:scale-90 border border-white/20"
-                           >
-                             <span className="material-symbols-outlined text-lg">rocket_launch</span>
-                           </a>
+                     {(project.mediaClassifications || []).map(c => (
+                       <div
+                         key={c}
+                         className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border border-white/5 ${
+                           selectedClassification === c
+                             ? 'bg-primary text-white shadow-lg'
+                             : 'bg-white/5 text-slate-400 hover:text-white'
+                         }`}
+                       >
+                         <button onClick={() => setSelectedClassification(c)} className="uppercase tracking-widest cursor-pointer font-black">{c}</button>
+                         {isDirectorCreativo && (
                            <button 
-                            onClick={() => deleteMediaAsset(project.id, asset.id)} 
-                            className="w-10 h-10 bg-rose-500/10 text-rose-500 rounded-xl flex items-center justify-center hover:bg-rose-500 hover:text-white transition-all active:scale-90 border border-rose-500/20"
+                             onClick={(e) => { e.stopPropagation(); handleDeleteClassification(c); }}
+                             className="w-4 h-4 rounded-full flex items-center justify-center bg-black/25 text-white/60 hover:bg-rose-500 hover:text-white transition-colors cursor-pointer"
+                             title="Eliminar Categoría"
                            >
-                             <span className="material-symbols-outlined text-lg">delete_sweep</span>
+                             <span className="material-symbols-outlined text-[10px] leading-none">close</span>
                            </button>
+                         )}
+                       </div>
+                     ))}
+
+                     {isDirectorCreativo && (
+                       isAddingClassification ? (
+                         <div className="flex items-center gap-2 bg-white/5 border border-primary/30 p-1 rounded-xl animate-in zoom-in-95">
+                           <input
+                             type="text"
+                             placeholder="Nueva..."
+                             className="bg-transparent border-none text-[9px] font-bold text-white uppercase outline-none px-2 w-20 tracking-wider"
+                             value={newClassificationName}
+                             onChange={e => setNewClassificationName(e.target.value)}
+                             onKeyDown={e => { if (e.key === 'Enter') handleCreateClassification(); }}
+                             autoFocus
+                         />
+                           <button onClick={handleCreateClassification} className="text-emerald-400 hover:text-emerald-300 w-5 h-5 flex items-center justify-center cursor-pointer"><span className="material-symbols-outlined text-sm">check</span></button>
+                           <button onClick={() => { setIsAddingClassification(false); setNewClassificationName(''); }} className="text-slate-500 hover:text-white w-5 h-5 flex items-center justify-center cursor-pointer"><span className="material-symbols-outlined text-sm">close</span></button>
+                         </div>
+                       ) : (
+                         <button
+                           onClick={() => setIsAddingClassification(true)}
+                           className="px-3.5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all border border-emerald-500/20 flex items-center gap-1 cursor-pointer"
+                         >
+                           <span className="material-symbols-outlined text-xs">add</span> Nueva
+                         </button>
+                       )
+                     )}
+                   </div>
+
+                   {/* Listado de Activos Digitales Filtrados */}
+                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {((project.mediaRepository || []).filter(asset => {
+                        if (selectedClassification === 'Todos') return true;
+                        return asset.classification === selectedClassification;
+                      })).map((asset, idx) => (
+                        <div 
+                          key={asset.id} 
+                          className="glass-panel rounded-3xl p-6 border border-white/5 hover:border-primary/40 transition-all group flex items-center gap-6 relative overflow-hidden bg-[#08070b]/60 shadow-xl"
+                          style={{ animationDelay: `${idx*50}ms` }}
+                        >
+                          <div className="relative w-16 h-16 shrink-0 flex items-center justify-center">
+                            <div className="absolute inset-0 bg-primary/10 blur-xl rounded-full scale-125 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                            <div className="w-full h-full bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center relative z-10 transition-transform group-hover:scale-110">
+                               <span className={`material-symbols-outlined text-3xl ${asset.type === 'Imagen' ? 'text-primary' : asset.type === 'Video' ? 'text-accent-orange' : 'text-blue-400'}`}>
+                                  {asset.type === 'Imagen' ? 'frame_inspect' : asset.type === 'Video' ? 'movie_filter' : 'deployed_code'}
+                               </span>
+                            </div>
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <h4 className="text-white font-black text-xs uppercase tracking-[0.05em] truncate mb-1 group-hover:text-primary transition-colors">{asset.name}</h4>
+                            <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                               <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest bg-white/5 px-2 py-0.5 rounded-md border border-white/5">
+                                 {asset.classification || 'General'}
+                               </span>
+                               <span className="text-[8px] font-mono text-slate-700 uppercase">{asset.size || 'Vínculo'}</span>
+                            </div>
+                          </div>
+
+                          <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-all translate-x-4 group-hover:translate-x-0 shrink-0">
+                             <a 
+                              href={asset.url} 
+                              target="_blank" 
+                              rel="noreferrer" 
+                              className="w-9 h-9 bg-primary text-white rounded-xl shadow-lg flex items-center justify-center hover:scale-110 transition-transform active:scale-90 border border-white/20 cursor-pointer"
+                              title="Acceder"
+                             >
+                               <span className="material-symbols-outlined text-sm">rocket_launch</span>
+                             </a>
+                             {isDirectorCreativo && (
+                               <button 
+                                onClick={() => handleOpenEditMediaModal(asset)} 
+                                className="w-9 h-9 bg-white/5 text-slate-400 hover:bg-primary hover:text-white rounded-xl flex items-center justify-center transition-all active:scale-90 border border-white/10 cursor-pointer"
+                                title="Editar"
+                               >
+                                 <span className="material-symbols-outlined text-sm">edit</span>
+                               </button>
+                             )}
+                             <button 
+                              onClick={() => deleteMediaAsset(project.id, asset.id)} 
+                              className="w-9 h-9 bg-rose-500/10 text-rose-500 rounded-xl flex items-center justify-center hover:bg-rose-500 hover:text-white transition-all active:scale-90 border border-rose-500/20 cursor-pointer"
+                              title="Eliminar"
+                             >
+                               <span className="material-symbols-outlined text-sm">delete_sweep</span>
+                             </button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                      {((project.mediaRepository || []).filter(asset => {
+                        if (selectedClassification === 'Todos') return true;
+                        return asset.classification === selectedClassification;
+                      })).length === 0 && (
+                        <div className="col-span-full py-16 text-center bg-white/[0.01] border border-white/5 rounded-3xl">
+                          <span className="material-symbols-outlined text-slate-700 text-3xl mb-2">folder_open</span>
+                          <p className="text-xs text-slate-500 uppercase tracking-widest font-black">No hay activos registrados en esta categoría</p>
+                        </div>
+                      )}
+                   </div>
                  </div>
                )}
             </div>
@@ -667,7 +923,7 @@ const ProjectDetail: React.FC = () => {
           <div className="glass-panel border border-white/10 rounded-[3rem] w-full max-w-lg p-12 overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
             <h3 className="text-2xl font-black text-white mb-10 uppercase tracking-tighter ">Flujo de <span className="text-primary">Colaboración</span></h3>
             <div className="space-y-4 max-h-[400px] overflow-y-auto pr-4 scrollbar-hide">
-              {usersDB.map(u => {
+              {usersDB.filter(u => !u.role?.toLowerCase().startsWith('cliente')).map(u => {
                 const isAssigned = (Array.isArray(project.collaborators) ? project.collaborators : []).some(c => String(c.id) === String(u.id));
                 return (
                   <div key={u.id} className="flex items-center justify-between p-5 bg-white/5 border border-white/5 rounded-[2rem] group hover:border-primary/20 transition-all">
@@ -768,6 +1024,34 @@ const ProjectDetail: React.FC = () => {
                 </div>
               )}
 
+              <div className="space-y-2">
+                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest opacity-60">Clasificación / Categoría</label>
+                 <select 
+                   className="w-full bg-black/40 border border-white/5 rounded-2xl p-4 text-white text-xs font-black uppercase outline-none focus:border-primary"
+                   value={newMediaAssetClassification}
+                   onChange={e => setNewMediaAssetClassification(e.target.value)}
+                 >
+                   <option value="">Sin Clasificación</option>
+                   {(project.mediaClassifications || []).map(c => (
+                     <option key={c} value={c}>{c}</option>
+                   ))}
+                 </select>
+              </div>
+
+              <div className="space-y-2">
+                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest opacity-60">Clasificación / Categoría</label>
+                 <select 
+                   className="w-full bg-black/40 border border-white/5 rounded-2xl p-4 text-white text-xs font-black uppercase outline-none focus:border-primary"
+                   value={newMediaAssetClassification}
+                   onChange={e => setNewMediaAssetClassification(e.target.value)}
+                 >
+                   <option value="">Sin Clasificación</option>
+                   {(project.mediaClassifications || []).map(c => (
+                     <option key={c} value={c}>{c}</option>
+                   ))}
+                 </select>
+              </div>
+
               <div className="flex gap-4">
                 <button onClick={() => setShowMediaLinkModal(false)} className="flex-1 py-5 bg-white/5 text-slate-600 font-black rounded-[2rem] uppercase text-[10px] tracking-widest" disabled={isUploading}>Cerrar</button>
                 <button 
@@ -776,6 +1060,96 @@ const ProjectDetail: React.FC = () => {
                   className="btn-premium flex-2 py-5 text-white font-black rounded-[2rem] uppercase text-[11px] tracking-widest shadow-xl"
                 >
                   {isSubmitting || isUploading ? 'Procesando...' : 'Integrar a Bóveda'}
+                </button>
+              </div>
+           </div>
+        </div>
+      )}
+
+      {showEditMediaModal && editingMediaAsset && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-background-dark/95 backdrop-blur-2xl animate-in fade-in" onClick={() => { setShowEditMediaModal(false); setEditingMediaAsset(null); }}>
+           <div className="glass-panel border border-white/10 rounded-[3rem] w-full max-w-lg p-12 space-y-8 shadow-2xl" onClick={e => e.stopPropagation()}>
+              <h3 className="text-2xl font-black uppercase text-white tracking-tighter ">Editar <span className="text-primary">Activo Digital</span></h3>
+              
+              <div className="space-y-6">
+                 <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest opacity-60">Nombre del Recurso</label>
+                    <input 
+                      className="w-full bg-black/40 border border-white/5 rounded-2xl p-5 text-white text-sm outline-none font-bold uppercase" 
+                      placeholder="Ej: Logo Principal" 
+                      value={editMediaName} 
+                      onChange={e => setEditMediaName(e.target.value)} 
+                    />
+                 </div>
+                 
+                 <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest opacity-60">Clasificación / Categoría</label>
+                    <select 
+                      className="w-full bg-black/40 border border-white/5 rounded-2xl p-4 text-white text-xs font-black uppercase outline-none focus:border-primary"
+                      value={editMediaClassification}
+                      onChange={e => setEditMediaClassification(e.target.value)}
+                    >
+                      <option value="">Sin Clasificación</option>
+                      {(project.mediaClassifications || []).map(c => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                 </div>
+              </div>
+
+              <div className="flex gap-4">
+                <button onClick={() => { setShowEditMediaModal(false); setEditingMediaAsset(null); }} className="flex-1 py-5 bg-white/5 text-slate-600 font-black rounded-[2rem] uppercase text-[10px] tracking-widest">Cancelar</button>
+                <button 
+                  onClick={handleSaveEditMedia} 
+                  disabled={isSubmitting} 
+                  className="btn-premium flex-2 py-5 text-white font-black rounded-[2rem] uppercase text-[11px] tracking-widest shadow-xl"
+                >
+                  {isSubmitting ? 'Guardando...' : 'Guardar Cambios'}
+                </button>
+              </div>
+           </div>
+        </div>
+      )}
+
+      {showEditMediaModal && editingMediaAsset && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-background-dark/95 backdrop-blur-2xl animate-in fade-in" onClick={() => { setShowEditMediaModal(false); setEditingMediaAsset(null); }}>
+           <div className="glass-panel border border-white/10 rounded-[3rem] w-full max-w-lg p-12 space-y-8 shadow-2xl" onClick={e => e.stopPropagation()}>
+              <h3 className="text-2xl font-black uppercase text-white tracking-tighter ">Editar <span className="text-primary">Activo Digital</span></h3>
+              
+              <div className="space-y-6">
+                 <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest opacity-60">Nombre del Recurso</label>
+                    <input 
+                      className="w-full bg-black/40 border border-white/5 rounded-2xl p-5 text-white text-sm outline-none font-bold uppercase" 
+                      placeholder="Ej: Logo Principal" 
+                      value={editMediaName} 
+                      onChange={e => setEditMediaName(e.target.value)} 
+                    />
+                 </div>
+                 
+                 <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest opacity-60">Clasificación / Categoría</label>
+                    <select 
+                      className="w-full bg-black/40 border border-white/5 rounded-2xl p-4 text-white text-xs font-black uppercase outline-none focus:border-primary"
+                      value={editMediaClassification}
+                      onChange={e => setEditMediaClassification(e.target.value)}
+                    >
+                      <option value="">Sin Clasificación</option>
+                      {(project.mediaClassifications || []).map(c => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                 </div>
+              </div>
+
+              <div className="flex gap-4">
+                <button onClick={() => { setShowEditMediaModal(false); setEditingMediaAsset(null); }} className="flex-1 py-5 bg-white/5 text-slate-600 font-black rounded-[2rem] uppercase text-[10px] tracking-widest">Cancelar</button>
+                <button 
+                  onClick={handleSaveEditMedia} 
+                  disabled={isSubmitting} 
+                  className="btn-premium flex-2 py-5 text-white font-black rounded-[2rem] uppercase text-[11px] tracking-widest shadow-xl"
+                >
+                  {isSubmitting ? 'Guardando...' : 'Guardar Cambios'}
                 </button>
               </div>
            </div>

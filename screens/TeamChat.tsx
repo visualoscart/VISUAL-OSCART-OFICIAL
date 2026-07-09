@@ -126,7 +126,7 @@ const TeamChat: React.FC = () => {
             </div>
           </div>
           <div className="flex -space-x-3">
-            {usersDB.map(u => (
+            {usersDB.filter(u => !u.role?.toLowerCase().startsWith('cliente')).map(u => (
               <div key={u.id} className="relative group">
                 <img 
                   src={u.avatar} 
@@ -195,7 +195,7 @@ const TeamChat: React.FC = () => {
            </div>
            
            <div className="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto scrollbar-hide">
-              {showMentions ? usersDB.map(u => (
+              {showMentions ? usersDB.filter(u => !u.role?.toLowerCase().startsWith('cliente')).map(u => (
                 <div 
                   key={u.id} 
                   onClick={() => insertMention(u.firstName)} 

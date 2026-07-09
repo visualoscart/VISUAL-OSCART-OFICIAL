@@ -18,6 +18,7 @@ export interface MediaAsset {
   platform?: 'Drive' | 'Canva' | 'Dropbox' | 'Web';
   fileId?: string;
   previewUrl?: string;
+  classification?: string;
 }
 
 export interface ChatMessage {
@@ -108,6 +109,7 @@ export interface Task {
   createdAt: string;
   campaignId?: string;
   campaignThemeId?: string;
+  visibleToClient?: boolean;
 }
 
 export interface TypographySetting {
@@ -125,6 +127,7 @@ export interface Project {
   progress: number;
   logoUrl?: string; 
   brandManualUrl?: string; 
+  coverUrl?: string; 
   brief: string; 
   collaborators: Collaborator[];
   textRepository: TextAsset[];
@@ -140,9 +143,12 @@ export interface Project {
     brandCode?: string;
     driveFolderId?: string;
     inactiveAt?: string;
+    mediaClassifications?: string[];
+    coverUrl?: string;
   };
   driveFolderId?: string;
   brandCode?: string;
+  mediaClassifications?: string[];
 }
 
 export interface CampaignProductionDate {
@@ -224,6 +230,7 @@ export interface PerformanceReport {
     reach: number; 
     reactions: number; 
     imageUrl?: string;
+    postUrl?: string;
   }[];
   demographics?: {
     ageGender: { age: string; female: number; male: number }[];
