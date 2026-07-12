@@ -135,9 +135,14 @@ const Achievements: React.FC = () => {
 
       <header className="px-8 py-6 border-b border-white/5 shrink-0 bg-background-dark/30 backdrop-blur-2xl z-10">
         <div className="flex items-center justify-between gap-6 relative z-10">
-          <div>
-            <h2 className="text-2xl font-bold text-white tracking-tight uppercase">Rendimiento <span className="text-primary">& Bonos</span></h2>
-            <p className="text-slate-500 text-[10px] font-medium uppercase tracking-[0.2em] mt-1.5 opacity-60">Ciclo Operativo Mensual • {periodEnd.toLocaleString('es-ES', { month: 'long', year: 'numeric' })}</p>
+          <div className="flex items-center gap-5">
+            <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary border border-primary/20 shadow-lg">
+              <span className="material-symbols-outlined text-2xl">emoji_events</span>
+            </div>
+            <div>
+              <h2 className="text-3xl font-black text-white tracking-tight uppercase leading-none">Rendimiento <span className="text-primary">& Bonos</span></h2>
+              <p className="text-slate-500 text-[9px] font-black uppercase tracking-[0.3em] mt-0.5 opacity-60">Ciclo Operativo Mensual • {periodEnd.toLocaleString('es-ES', { month: 'long', year: 'numeric' })}</p>
+            </div>
           </div>
         </div>
       </header>

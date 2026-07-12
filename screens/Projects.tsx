@@ -53,9 +53,14 @@ const Projects: React.FC = () => {
       <div className="absolute top-1/2 -left-24 w-[400px] h-[400px] bg-primary/10 blur-[100px] rounded-full pointer-events-none animate-pulse duration-7000"></div>
 
       <header className="px-8 py-6 border-b border-white/5 bg-background-dark/30 backdrop-blur-2xl flex flex-col md:flex-row md:items-center justify-between gap-6 shrink-0 z-10">
-        <div>
-          <h2 className="text-3xl font-black text-white tracking-tight uppercase">Marcas <span className="text-primary">Estratégicas</span></h2>
-          <p className="text-slate-500 text-[9px] font-black uppercase tracking-[0.3em] mt-1 opacity-60">Biblioteca corporativa y centros de activos</p>
+        <div className="flex items-center gap-5">
+          <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary border border-primary/20 shadow-lg">
+            <span className="material-symbols-outlined text-2xl">folder_open</span>
+          </div>
+          <div>
+            <h2 className="text-3xl font-black text-white tracking-tight uppercase leading-none">Marcas <span className="text-primary">Estratégicas</span></h2>
+            <p className="text-slate-500 text-[9px] font-black uppercase tracking-[0.3em] mt-0.5 opacity-60">Biblioteca corporativa y centros de activos</p>
+          </div>
         </div>
         <button 
           onClick={() => navigate('/validation')}

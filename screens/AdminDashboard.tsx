@@ -878,11 +878,11 @@ const AdminDashboard: React.FC = () => {
       <header className="px-10 py-6 border-b border-white/5 flex items-center justify-between sticky top-0 z-40 bg-background-dark/40 backdrop-blur-3xl">
         <div className="flex items-center gap-5">
             <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary border border-primary/20 shadow-lg">
-                <span className="material-symbols-outlined text-2xl">terminal</span>
+                <span className="material-symbols-outlined text-2xl">admin_panel_settings</span>
             </div>
             <div>
-                <h2 className="text-3xl font-bold text-white tracking-tight uppercase">Control Maestro <span className="text-primary">.</span></h2>
-                <p className="text-slate-500 text-[9px] font-semibold uppercase tracking-[0.3em] mt-1 opacity-60">Global Master Protocol</p>
+                <h2 className="text-3xl font-black text-white tracking-tight uppercase leading-none">Control Maestro <span className="text-primary">.</span></h2>
+                <p className="text-slate-500 text-[9px] font-black uppercase tracking-[0.3em] mt-0.5 opacity-60">Global Master Protocol</p>
             </div>
         </div>
         <nav className="flex bg-black/40 p-1.5 rounded-2xl border border-white/5 gap-1.5 backdrop-blur-md">
@@ -912,9 +912,9 @@ const AdminDashboard: React.FC = () => {
               </div>
               
               <div className="flex items-center gap-4">
-                <div className="flex bg-black/40 p-1.5 rounded-2xl border border-white/5 gap-1.5">
+                <div className="flex items-center gap-2">
                   <select 
-                    className="bg-transparent text-white text-[11px] font-semibold uppercase tracking-widest outline-none px-4 py-2"
+                    className="bg-black/40 hover:bg-white/5 text-white text-[11px] font-semibold uppercase tracking-widest outline-none px-4 py-2.5 rounded-xl border border-white/5 transition-all"
                     value={selectedPeriod.month}
                     onChange={(e) => setSelectedPeriod({ ...selectedPeriod, month: parseInt(e.target.value) })}
                   >
@@ -923,7 +923,7 @@ const AdminDashboard: React.FC = () => {
                     ))}
                   </select>
                   <select 
-                    className="bg-transparent text-white text-[11px] font-semibold uppercase tracking-widest outline-none px-4 py-2 border-l border-white/5"
+                    className="bg-black/40 hover:bg-white/5 text-white text-[11px] font-semibold uppercase tracking-widest outline-none px-4 py-2.5 rounded-xl border border-white/5 transition-all"
                     value={selectedPeriod.year}
                     onChange={(e) => setSelectedPeriod({ ...selectedPeriod, year: parseInt(e.target.value) })}
                   >

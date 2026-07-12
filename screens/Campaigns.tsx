@@ -444,12 +444,14 @@ const Campaigns: React.FC = () => {
  
  {/* HEADER SECTION (Static) */}
  <header className="px-8 py-6 flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-white/5 bg-background-dark/30 backdrop-blur-2xl shrink-0 z-20">
- <div className="space-y-2">
- <div className="flex items-center gap-3">
- <div className="w-1.5 h-8 bg-primary rounded-full"/>
- <h1 className="text-3xl font-black text-white tracking-tighter uppercase">Gestión de Campañas</h1>
+ <div className="flex items-center gap-5">
+ <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary border border-primary/20 shadow-lg">
+ <span className="material-symbols-outlined text-2xl">campaign</span>
  </div>
- <p className="text-slate-300 font-black text-[7px] uppercase tracking-[0.3em] opacity-60">Planificación estratégica y ejecución de contenido</p>
+ <div>
+ <h2 className="text-3xl font-black text-white tracking-tight uppercase leading-none">Gestión de <span className="text-primary">Campañas</span></h2>
+ <p className="text-slate-500 text-[9px] font-black uppercase tracking-[0.3em] mt-0.5 opacity-60">Planificación estratégica y ejecución de contenido</p>
+ </div>
  </div>
  
  {selectedProject && (

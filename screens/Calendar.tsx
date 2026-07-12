@@ -227,25 +227,28 @@ const Calendar: React.FC = () => {
       <div className="absolute -top-24 -right-24 w-[600px] h-[600px] bg-primary/5 blur-[120px] rounded-full pointer-events-none"></div>
       <div className="absolute top-1/2 -left-24 w-[400px] h-[400px] bg-primary/5 blur-[100px] rounded-full pointer-events-none"></div>
 
-      <header className="px-4 sm:px-8 py-4 sm:py-6 border-b border-white/5 shrink-0 sticky top-0 z-40 bg-background-dark/30 backdrop-blur-2xl">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3 sm:gap-4">
-            <div className="bg-primary/20 p-2 rounded-xl text-primary border border-primary/20 shadow-lg">
-              <span className="material-symbols-outlined text-xl sm:text-2xl">calendar_today</span>
+      <header className="px-8 py-6 border-b border-white/5 shrink-0 sticky top-0 z-40 bg-background-dark/30 backdrop-blur-2xl">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex items-center gap-5">
+            <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary border border-primary/20 shadow-lg">
+              <span className="material-symbols-outlined text-2xl">calendar_month</span>
             </div>
-            <h2 className="text-xl sm:text-2xl font-bold text-white capitalize tracking-tighter">{monthName} <span className="text-primary">{currentYear}</span></h2>
+            <div>
+              <h2 className="text-3xl font-black text-white tracking-tight uppercase leading-none">{monthName} <span className="text-primary">{currentYear}</span></h2>
+              <p className="text-slate-500 text-[9px] font-black uppercase tracking-[0.3em] mt-0.5 opacity-60">Programación mensual y control de entregas</p>
+            </div>
           </div>
           <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-4">
-            <div className="flex bg-black/40 p-1 rounded-xl border border-white/10 backdrop-blur-md">
+            <div className="flex bg-black/40 p-1.5 rounded-2xl border border-white/10 backdrop-blur-md">
               <button onClick={() => setCurrentDate(new Date(currentYear, currentMonth - 1, 1))} className="p-2 text-slate-500 hover:text-white transition-colors">
-                <span className="material-symbols-outlined text-lg sm:text-xl">chevron_left</span>
+                <span className="material-symbols-outlined text-lg">chevron_left</span>
               </button>
-              <button onClick={() => setCurrentDate(new Date())} className="px-2 sm:px-4 py-2 text-[8px] sm:text-[10px] font-black uppercase text-slate-400 hover:text-white">Hoy</button>
+              <button onClick={() => setCurrentDate(new Date())} className="px-4 py-2 text-[10px] font-black uppercase text-slate-400 hover:text-white">Hoy</button>
               <button onClick={() => setCurrentDate(new Date(currentYear, currentMonth + 1, 1))} className="p-2 text-slate-500 hover:text-white transition-colors">
-                <span className="material-symbols-outlined text-lg sm:text-xl">chevron_right</span>
+                <span className="material-symbols-outlined text-lg">chevron_right</span>
               </button>
             </div>
-            <button onClick={() => setShowModal(true)} className="btn-premium flex-1 sm:flex-none px-4 sm:px-6 py-2.5 text-white font-black text-[9px] sm:text-[10px] uppercase rounded-xl shadow-2xl transition-all active:scale-95">Nueva Tarea</button>
+            <button onClick={() => setShowModal(true)} className="btn-premium px-6 py-3.5 text-white font-black text-[9px] uppercase rounded-2xl shadow-2xl transition-all active:scale-95">Nueva Tarea</button>
           </div>
         </div>
       </header>

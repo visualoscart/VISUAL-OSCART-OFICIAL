@@ -535,8 +535,8 @@ const Performance: React.FC = () => {
  >
  <span className="material-symbols-outlined group-hover:-translate-x-1 transition-transform">arrow_back</span>
  </button>
- <div className="flex items-center gap-4">
- <div className="w-12 h-12 rounded-2xl bg-primary/20 flex items-center justify-center border border-primary/20 shadow-lg shadow-primary/10 shrink-0">
+ <div className="flex items-center gap-5">
+ <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary border border-primary/20 shadow-lg shrink-0">
  <TrendingUp className="text-primary w-6 h-6"/>
  </div>
  <div>
@@ -549,11 +549,11 @@ const Performance: React.FC = () => {
  <ChevronRight className="w-5 h-5 rotate-180"/>
  </button>
  )}
- <h1 className="text-2xl sm:text-4xl font-black text-white uppercase tracking-tighter leading-none">
+ <h2 className="text-3xl font-black text-white tracking-tight uppercase leading-none">
  Rendimiento <span className="text-primary">{isViewingDashboard ? 'Dashboard' : 'Maestro'}</span>
- </h1>
+ </h2>
  </div>
- <p className="text-slate-500 text-[10px] sm:text-xs font-bold uppercase tracking-widest mt-2">
+ <p className="text-slate-500 text-[9px] font-black uppercase tracking-[0.3em] mt-0.5 opacity-60">
  {isViewingDashboard ? `Gestionando reportes de ${selectedProject?.name}` : 'Análisis estratégico y reporte de impacto mensual'}
  </p>
  </div>

@@ -102,10 +102,18 @@ const Ideation: React.FC = () => {
         </div>
       ) : (
         <div className="flex-1 flex flex-col h-full bg-background-dark">
-           <header className="px-8 py-4 border-b border-white/5 flex items-center justify-between bg-background-dark/80 backdrop-blur shrink-0">
-              <div className="flex items-center gap-4">
-                 <button onClick={() => setSelectedCategory(null)} className="p-2.5 rounded-2xl bg-white/5 text-slate-400 hover:text-white"><span className="material-symbols-outlined">arrow_back</span></button>
-                 <h2 className="text-lg font-black text-white uppercase tracking-tight">Estudio: {selectedCategory.title}</h2>
+           <header className="px-8 py-6 border-b border-white/5 flex items-center justify-between bg-background-dark/30 backdrop-blur-2xl shrink-0">
+              <div className="flex items-center gap-6">
+                 <button onClick={() => setSelectedCategory(null)} className="p-3 bg-white/5 border border-white/5 rounded-2xl hover:bg-white/10 text-slate-400 hover:text-white transition-all shadow-xl"><span className="material-symbols-outlined">arrow_back</span></button>
+                 <div className="flex items-center gap-5">
+                    <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary border border-primary/20 shadow-lg">
+                      <span className="material-symbols-outlined text-2xl">{selectedCategory.icon}</span>
+                    </div>
+                    <div>
+                      <h2 className="text-3xl font-black text-white tracking-tight uppercase leading-none">Estudio <span className="text-primary">IA</span></h2>
+                      <p className="text-slate-500 text-[9px] font-black uppercase tracking-[0.3em] mt-0.5 opacity-60">{selectedCategory.title} — Asistente Generativo</p>
+                    </div>
+                 </div>
               </div>
               <select className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-xs font-black uppercase text-slate-300 outline-none" onChange={e => setSelectedBrand(e.target.value)} value={selectedBrand}>
                  <option value="">Seleccionar Marca</option>

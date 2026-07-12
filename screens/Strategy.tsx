@@ -24,9 +24,14 @@ const Strategy: React.FC = () => {
       <div className="absolute top-1/2 -left-24 w-[350px] h-[350px] bg-primary/3 blur-[100px] rounded-full pointer-events-none"></div>
 
       <header className="px-8 py-6 border-b border-white/5 bg-background-dark/30 backdrop-blur-2xl flex flex-col md:flex-row md:items-center justify-between gap-6 shrink-0 z-10">
-        <div>
-          <h2 className="text-3xl font-bold text-white tracking-tight uppercase">Estrategia de <span className="text-primary">Marca</span></h2>
-          <p className="text-slate-500 text-[9px] font-bold uppercase tracking-[0.3em] mt-1 opacity-60">Gestión Táctica y Rendimiento Mensual</p>
+        <div className="flex items-center gap-5">
+          <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary border border-primary/20 shadow-lg">
+            <span className="material-symbols-outlined text-2xl">psychology</span>
+          </div>
+          <div>
+            <h2 className="text-3xl font-black text-white tracking-tight uppercase leading-none">Estrategia de <span className="text-primary">Marca</span></h2>
+            <p className="text-slate-500 text-[9px] font-black uppercase tracking-[0.3em] mt-0.5 opacity-60">Gestión Táctica y Rendimiento Mensual</p>
+          </div>
         </div>
       </header>
 

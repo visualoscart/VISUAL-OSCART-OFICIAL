@@ -21,10 +21,10 @@
             theme: {
                 extend: {
                     colors: {
-                        "primary": "#8c2bee",
+                        "primary": "#9e6cff",
                         "primary-dark": "#4a00e0",
                         "accent-orange": "#f97316",
-                        "background-dark": "#0a090c",
+                        "background-dark": "#18171c",
                         "card-dark": "rgba(12, 11, 15, 0.4)",
                     },
                     fontFamily: {
@@ -38,12 +38,12 @@
     </script>
     <style>
         :root {
-            --gradient-primary: linear-gradient(135deg, #8c2bee 0%, #6366f1 100%);
+            --gradient-primary: linear-gradient(135deg, #9e6cff 0%, #6366f1 100%);
         }
 
         body { 
             font-family: 'Plus Jakarta Sans', sans-serif; 
-            background-color: #0a090c;
+            background-color: #18171c;
             color: #f1f1f1;
             -webkit-font-smoothing: antialiased;
             overflow: hidden;
@@ -70,11 +70,22 @@
 
         /* Fondo Orbital Morado Refinado */
         .pattern-orbital {
-            background-color: #0a090c;
             background-image: 
-                radial-gradient(circle at 20% 30%, rgba(140, 43, 238, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 20% 30%, rgba(158, 108, 255, 0.15) 0%, transparent 50%),
                 radial-gradient(circle at 80% 70%, rgba(99, 102, 241, 0.08) 0%, transparent 50%),
-                url("data:image/svg+xml,%3Csvg width='800' height='800' viewBox='0 0 800 800' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%238c2bee' stroke-opacity='0.05' stroke-width='0.5'%3E%3Cellipse cx='400' cy='400' rx='150' ry='250' transform='rotate(-25 400 400)' /%3E%3Cellipse cx='400' cy='400' rx='300' ry='500' transform='rotate(-25 400 400)' /%3E%3Cellipse cx='400' cy='400' rx='450' ry='750' transform='rotate(-25 400 400)' /%3E%3Cellipse cx='400' cy='400' rx='600' ry='1000' transform='rotate(-25 400 400)' /%3E%3C/g%3E%3C/svg%3E");
+                url("data:image/svg+xml,%3Csvg width='800' height='800' viewBox='0 0 800 800' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%239e6cff' stroke-opacity='0.05' stroke-width='0.5'%3E%3Cellipse cx='400' cy='400' rx='150' ry='250' transform='rotate(-25 400 400)' /%3E%3Cellipse cx='400' cy='400' rx='300' ry='500' transform='rotate(-25 400 400)' /%3E%3Cellipse cx='400' cy='400' rx='450' ry='750' transform='rotate(-25 400 400)' /%3E%3Cellipse cx='400' cy='400' rx='600' ry='1000' transform='rotate(-25 400 400)' /%3E%3C/g%3E%3C/svg%3E"),
+                linear-gradient(135deg, #18171c 0%, #1e212e 100%);
+            background-attachment: fixed;
+            background-size: cover;
+        }
+
+        /* Fondo Orbital con Degradado Personalizado */
+        .pattern-orbital-gradient {
+            background-image: 
+                radial-gradient(circle at 20% 30%, rgba(158, 108, 255, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(99, 102, 241, 0.08) 0%, transparent 50%),
+                url("data:image/svg+xml,%3Csvg width='800' height='800' viewBox='0 0 800 800' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%239e6cff' stroke-opacity='0.05' stroke-width='0.5'%3E%3Cellipse cx='400' cy='400' rx='150' ry='250' transform='rotate(-25 400 400)' /%3E%3Cellipse cx='400' cy='400' rx='300' ry='500' transform='rotate(-25 400 400)' /%3E%3Cellipse cx='400' cy='400' rx='450' ry='750' transform='rotate(-25 400 400)' /%3E%3Cellipse cx='400' cy='400' rx='600' ry='1000' transform='rotate(-25 400 400)' /%3E%3C/g%3E%3C/svg%3E"),
+                linear-gradient(135deg, #18171c 0%, #1e212e 100%);
             background-attachment: fixed;
             background-size: cover;
         }
@@ -83,10 +94,10 @@
         .pattern-orbital-hyper {
             background-color: #050406;
             background-image: 
-                radial-gradient(circle at 50% 50%, rgba(140, 43, 238, 0.1) 0%, transparent 70%),
+                radial-gradient(circle at 50% 50%, rgba(158, 108, 255, 0.1) 0%, transparent 70%),
                 radial-gradient(circle at 0% 0%, rgba(99, 102, 241, 0.12) 0%, transparent 40%),
                 radial-gradient(circle at 100% 100%, rgba(249, 115, 22, 0.08) 0%, transparent 40%),
-                url("data:image/svg+xml,%3Csvg width='1200' height='1200' viewBox='0 0 1200 1200' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%238c2bee' stroke-opacity='0.08' stroke-width='0.75'%3E%3Ccircle cx='600' cy='600' r='100' /%3E%3Ccircle cx='600' cy='600' r='200' /%3E%3Ccircle cx='600' cy='600' r='350' /%3E%3Ccircle cx='600' cy='600' r='550' /%3E%3Ccircle cx='600' cy='600' r='800' /%3E%3C/g%3E%3Cg fill='none' stroke='%23f97316' stroke-opacity='0.04' stroke-width='0.5'%3E%3Cellipse cx='600' cy='600' rx='800' ry='300' transform='rotate(35 600 600)' /%3E%3Cellipse cx='600' cy='600' rx='800' ry='300' transform='rotate(-35 600 600)' /%3E%3C/g%3E%3C/svg%3E");
+                url("data:image/svg+xml,%3Csvg width='1200' height='1200' viewBox='0 0 1200 1200' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%239e6cff' stroke-opacity='0.08' stroke-width='0.75'%3E%3Ccircle cx='600' cy='600' r='100' /%3E%3Ccircle cx='600' cy='600' r='200' /%3E%3Ccircle cx='600' cy='600' r='350' /%3E%3Ccircle cx='600' cy='600' r='550' /%3E%3Ccircle cx='600' cy='600' r='800' /%3E%3C/g%3E%3Cg fill='none' stroke='%23f97316' stroke-opacity='0.04' stroke-width='0.5'%3E%3Cellipse cx='600' cy='600' rx='800' ry='300' transform='rotate(35 600 600)' /%3E%3Cellipse cx='600' cy='600' rx='800' ry='300' transform='rotate(-35 600 600)' /%3E%3C/g%3E%3C/svg%3E");
             background-attachment: fixed;
             background-size: cover;
             animation: orbitalRotate 180s linear infinite;
@@ -106,13 +117,13 @@
 
         .btn-premium {
             background: var(--gradient-primary);
-            box-shadow: 0 10px 20px -5px rgba(140, 43, 238, 0.4);
+            box-shadow: 0 10px 20px -5px rgba(158, 108, 255, 0.4);
             transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
         }
         .btn-premium:hover {
             filter: brightness(1.15);
             transform: translateY(-2px);
-            box-shadow: 0 15px 30px -5px rgba(140, 43, 238, 0.5);
+            box-shadow: 0 15px 30px -5px rgba(158, 108, 255, 0.5);
         }
 
         input {
@@ -121,9 +132,27 @@
             transition: all 0.2s ease;
         }
         input:focus {
-            border-color: rgba(140, 43, 238, 0.5) !important;
+            border-color: rgba(158, 108, 255, 0.5) !important;
             background: rgba(255, 255, 255, 0.04) !important;
-            box-shadow: 0 0 0 4px rgba(140, 43, 238, 0.1) !important;
+            box-shadow: 0 0 0 4px rgba(158, 108, 255, 0.1) !important;
+        }
+
+        select {
+            appearance: none !important;
+            -webkit-appearance: none !important;
+            -moz-appearance: none !important;
+            background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2394a3b8%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E") !important;
+            background-repeat: no-repeat !important;
+            background-position: right 1rem center !important;
+            background-size: 9px 9px !important;
+            padding-right: 2.5rem !important;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        select:focus {
+            outline: none !important;
+            border-color: rgba(158, 108, 255, 0.5) !important;
+            box-shadow: 0 0 0 4px rgba(158, 108, 255, 0.1) !important;
         }
     </style>
 <script type="importmap">

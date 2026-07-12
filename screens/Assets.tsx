@@ -48,11 +48,16 @@ const Assets: React.FC = () => {
 
   return (
     <div className="flex-1 flex flex-col h-full bg-background-dark overflow-hidden font-display text-white">
-      <header className="px-8 py-8 border-b border-white/5 bg-background-dark/50 backdrop-blur shrink-0">
+      <header className="px-8 py-6 border-b border-white/5 bg-background-dark/30 backdrop-blur-2xl shrink-0">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div>
-            <h2 className="text-3xl font-black tracking-tight">Bóveda Global de Activos</h2>
-            <p className="text-slate-500 text-sm mt-1">Biblioteca consolidada de recursos multimedia del estudio.</p>
+          <div className="flex items-center gap-5">
+            <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary border border-primary/20 shadow-lg">
+              <span className="material-symbols-outlined text-2xl">inventory_2</span>
+            </div>
+            <div>
+              <h2 className="text-3xl font-black text-white tracking-tight uppercase leading-none">Bóveda Global <span className="text-primary">de Activos</span></h2>
+              <p className="text-slate-500 text-[9px] font-black uppercase tracking-[0.3em] mt-0.5 opacity-60">Biblioteca consolidada de recursos multimedia del estudio</p>
+            </div>
           </div>
           <div className="flex items-center gap-3">
             <div className="flex flex-col items-end">

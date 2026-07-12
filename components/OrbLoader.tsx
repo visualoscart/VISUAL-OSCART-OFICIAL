@@ -62,7 +62,7 @@ const OrbLoader: React.FC<OrbLoaderProps> = ({ visible }) => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'radial-gradient(ellipse at 50% 40%, rgba(90,20,160,0.35) 0%, rgba(5,4,8,0.96) 65%)',
+        background: 'radial-gradient(circle at 50% 50%, rgba(158,108,255,0.18) 0%, transparent 60%), linear-gradient(135deg, #18171c 0%, #1e212e 100%)',
         backdropFilter: 'blur(18px)',
         WebkitBackdropFilter: 'blur(18px)',
         transition: 'opacity 0.7s cubic-bezier(0.4,0,0.2,1)',
@@ -76,7 +76,7 @@ const OrbLoader: React.FC<OrbLoaderProps> = ({ visible }) => {
         viewBox="0 0 800 800"
         preserveAspectRatio="xMidYMid slice"
       >
-        <g fill="none" stroke="#8c2bee" strokeWidth="0.8">
+        <g fill="none" stroke="#9e6cff" strokeWidth="0.8">
           <ellipse cx="400" cy="400" rx="160" ry="300" transform="rotate(-20 400 400)" />
           <ellipse cx="400" cy="400" rx="280" ry="480" transform="rotate(-20 400 400)" />
           <ellipse cx="400" cy="400" rx="380" ry="650" transform="rotate(-20 400 400)" />
@@ -94,7 +94,7 @@ const OrbLoader: React.FC<OrbLoaderProps> = ({ visible }) => {
             position: 'absolute',
             inset: -28,
             borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(140,43,238,0.22) 0%, transparent 70%)',
+            background: 'radial-gradient(circle, rgba(158,108,255,0.22) 0%, transparent 70%)',
             animation: 'orbPulse 2.4s ease-in-out infinite',
           }} />
 
@@ -111,10 +111,10 @@ const OrbLoader: React.FC<OrbLoaderProps> = ({ visible }) => {
           >
             <defs>
               <linearGradient id="haloGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#c084fc" stopOpacity="0" />
-                <stop offset="40%" stopColor="#a855f7" stopOpacity="1" />
-                <stop offset="70%" stopColor="#7c3aed" stopOpacity="0.6" />
-                <stop offset="100%" stopColor="#c084fc" stopOpacity="0" />
+                <stop offset="0%" stopColor="#c0a6ff" stopOpacity="0" />
+                <stop offset="40%" stopColor="#9e6cff" stopOpacity="1" />
+                <stop offset="70%" stopColor="#5c2ee6" stopOpacity="0.6" />
+                <stop offset="100%" stopColor="#c0a6ff" stopOpacity="0" />
               </linearGradient>
             </defs>
             <circle
@@ -141,7 +141,7 @@ const OrbLoader: React.FC<OrbLoaderProps> = ({ visible }) => {
             <circle
               cx="100" cy="100" r="92"
               fill="none"
-              stroke="rgba(167,139,250,0.35)"
+              stroke="rgba(158,108,255,0.35)"
               strokeWidth="1"
               strokeDasharray="60 520"
               strokeLinecap="round"
@@ -162,8 +162,8 @@ const OrbLoader: React.FC<OrbLoaderProps> = ({ visible }) => {
               width: 8,
               height: 8,
               borderRadius: '50%',
-              background: '#c084fc',
-              boxShadow: '0 0 12px 4px rgba(192,132,252,0.8)',
+              background: '#c0a6ff',
+              boxShadow: '0 0 12px 4px rgba(158,108,255,0.8)',
               transform: 'translateY(-50%)',
             }} />
           </div>
@@ -182,8 +182,8 @@ const OrbLoader: React.FC<OrbLoaderProps> = ({ visible }) => {
               width: 5,
               height: 5,
               borderRadius: '50%',
-              background: '#7c3aed',
-              boxShadow: '0 0 8px 3px rgba(124,58,237,0.7)',
+              background: '#9e6cff',
+              boxShadow: '0 0 8px 3px rgba(158,108,255,0.7)',
               transform: 'translateY(-50%)',
             }} />
           </div>
@@ -194,17 +194,17 @@ const OrbLoader: React.FC<OrbLoaderProps> = ({ visible }) => {
             height: 180,
             borderRadius: '50%',
             background: `
-              radial-gradient(circle at 38% 35%, rgba(192,132,252,0.55) 0%, transparent 55%),
-              radial-gradient(circle at 68% 72%, rgba(109,40,217,0.4) 0%, transparent 45%),
-              radial-gradient(circle at 50% 50%, rgba(88,28,220,0.9) 0%, rgba(55,10,140,0.95) 100%)
+              radial-gradient(circle at 38% 35%, rgba(158,108,255,0.55) 0%, transparent 55%),
+              radial-gradient(circle at 68% 72%, rgba(92,46,230,0.4) 0%, transparent 45%),
+              radial-gradient(circle at 50% 50%, rgba(158,108,255,0.85) 0%, rgba(55,10,140,0.95) 100%)
             `,
             boxShadow: `
-              0 0 60px 20px rgba(140,43,238,0.4),
-              0 0 120px 40px rgba(124,58,237,0.2),
-              inset 0 0 40px rgba(192,132,252,0.15),
+              0 0 60px 20px rgba(158,108,255,0.4),
+              0 0 120px 40px rgba(158,108,255,0.2),
+              inset 0 0 40px rgba(158,108,255,0.15),
               inset 0 -20px 60px rgba(55,10,140,0.5)
             `,
-            border: '1px solid rgba(192,132,252,0.3)',
+            border: '1px solid rgba(158,108,255,0.3)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -228,9 +228,9 @@ const OrbLoader: React.FC<OrbLoaderProps> = ({ visible }) => {
                 position: 'absolute',
                 inset: 0,
                 background: `
-                  radial-gradient(circle at 38% 35%, rgba(192,132,252,0.55) 0%, transparent 55%),
-                  radial-gradient(circle at 68% 72%, rgba(109,40,217,0.4) 0%, transparent 45%),
-                  radial-gradient(circle at 50% 50%, rgba(88,28,220,0.9) 0%, rgba(55,10,140,0.95) 100%)
+                  radial-gradient(circle at 38% 35%, rgba(158,108,255,0.55) 0%, transparent 55%),
+                  radial-gradient(circle at 68% 72%, rgba(92,46,230,0.4) 0%, transparent 45%),
+                  radial-gradient(circle at 50% 50%, rgba(158,108,255,0.85) 0%, rgba(55,10,140,0.95) 100%)
                 `,
                 animation: 'orbFallbackSpin 3s linear infinite',
               }} />
@@ -242,7 +242,7 @@ const OrbLoader: React.FC<OrbLoaderProps> = ({ visible }) => {
                 width: '140%',
                 height: '140%',
                 borderRadius: '40%',
-                background: 'rgba(167,139,250,0.35)',
+                background: 'rgba(158,108,255,0.35)',
                 animation: 'orbWave 3s ease-in-out infinite',
               }} />
               {/* Iniciales VO como placeholder */}
@@ -259,7 +259,7 @@ const OrbLoader: React.FC<OrbLoaderProps> = ({ visible }) => {
                   fontSize: 38,
                   color: 'rgba(255,255,255,0.85)',
                   letterSpacing: '-2px',
-                  textShadow: '0 0 20px rgba(192,132,252,0.8)',
+                  textShadow: '0 0 20px rgba(158,108,255,0.8)',
                   userSelect: 'none',
                 }}>
                   VO
@@ -313,7 +313,7 @@ const OrbLoader: React.FC<OrbLoaderProps> = ({ visible }) => {
             fontSize: 22,
             color: 'rgba(255,255,255,0.95)',
             letterSpacing: '-0.5px',
-            textShadow: '0 0 30px rgba(140,43,238,0.5)',
+            textShadow: '0 0 30px rgba(158,108,255,0.5)',
             marginBottom: 6,
           }}>
             Visual Oscart
@@ -324,7 +324,7 @@ const OrbLoader: React.FC<OrbLoaderProps> = ({ visible }) => {
             fontFamily: "'Plus Jakarta Sans', sans-serif",
             fontSize: 12,
             fontWeight: 500,
-            color: 'rgba(192,132,252,0.8)',
+            color: 'rgba(158,108,255,0.85)',
             letterSpacing: '0.05em',
             height: 18,
             transition: 'opacity 0.4s ease',
@@ -339,15 +339,15 @@ const OrbLoader: React.FC<OrbLoaderProps> = ({ visible }) => {
           width: 160,
           height: 2,
           borderRadius: 4,
-          background: 'rgba(140,43,238,0.15)',
+          background: 'rgba(158,108,255,0.15)',
           overflow: 'hidden',
         }}>
           <div style={{
             height: '100%',
             borderRadius: 4,
-            background: 'linear-gradient(90deg, #7c3aed, #c084fc)',
+            background: 'linear-gradient(90deg, #5c2ee6, #9e6cff)',
             animation: 'orbProgress 5s ease-in-out forwards',
-            boxShadow: '0 0 8px rgba(192,132,252,0.8)',
+            boxShadow: '0 0 8px rgba(158,108,255,0.8)',
           }} />
         </div>
       </div>

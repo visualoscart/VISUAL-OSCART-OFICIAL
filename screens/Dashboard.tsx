@@ -78,12 +78,16 @@ const Dashboard: React.FC = () => {
       <div className="absolute -top-24 -right-24 w-[500px] h-[500px] bg-primary/3 blur-[120px] rounded-full pointer-events-none"></div>
       <div className="absolute top-1/2 -left-24 w-[350px] h-[350px] bg-primary/3 blur-[100px] rounded-full pointer-events-none"></div>
 
-      <header className="h-20 px-6 sm:px-8 flex items-center justify-between border-b border-white/5 bg-background-dark/30 backdrop-blur-2xl shrink-0 z-10" style={{ fontFamily: 'Poppins, sans-serif' }}>
-        <div>
-          <h2 className="text-2xl font-bold text-white tracking-tight uppercase">Hola, {currentUser?.firstName || 'Socio'} <span className="text-primary">.</span></h2>
-          <p className="text-slate-500 text-[10px] font-medium uppercase tracking-[0.2em] mt-1.5 opacity-60">Centro de Operaciones Digitales</p>
+      <header className="px-8 py-6 border-b border-white/5 bg-background-dark/30 backdrop-blur-2xl flex items-center justify-between shrink-0 z-10" style={{ fontFamily: 'Poppins, sans-serif' }}>
+        <div className="flex items-center gap-5">
+          <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary border border-primary/20 shadow-lg">
+            <span className="material-symbols-outlined text-2xl">dashboard</span>
+          </div>
+          <div>
+            <h2 className="text-3xl font-black text-white tracking-tight uppercase leading-none">Hola, {currentUser?.firstName || 'Socio'} <span className="text-primary">.</span></h2>
+            <p className="text-slate-500 text-[9px] font-black uppercase tracking-[0.3em] mt-0.5 opacity-60">Centro de Operaciones Digitales</p>
+          </div>
         </div>
-
       </header>
 
       <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-10 scrollbar-hide relative z-10">

@@ -142,9 +142,14 @@ const Team: React.FC = () => {
       <div className="absolute -top-12 -right-12 w-[500px] h-[500px] bg-primary/5 blur-[120px] rounded-full pointer-events-none"></div>
 
       <header className="px-8 py-6 border-b border-white/5 flex items-center justify-between bg-background-dark/30 backdrop-blur-2xl shrink-0 z-10">
-        <div>
-          <h2 className="text-xl font-bold text-white uppercase tracking-tight">Mi Workspace <span className="text-primary">.</span></h2>
-          <p className="text-[10px] font-medium text-slate-500 uppercase tracking-widest mt-0.5 opacity-60">Visual Oscart Network • Identity Protocol</p>
+        <div className="flex items-center gap-5">
+            <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary border border-primary/20 shadow-lg">
+                <span className="material-symbols-outlined text-2xl">account_circle</span>
+            </div>
+            <div>
+                <h2 className="text-3xl font-black text-white tracking-tight uppercase leading-none">Mi Workspace <span className="text-primary">.</span></h2>
+                <p className="text-slate-500 text-[9px] font-black uppercase tracking-[0.3em] mt-0.5 opacity-60">Visual Oscart Network • Identity Protocol</p>
+            </div>
         </div>
       </header>
 
