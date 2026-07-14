@@ -3,6 +3,9 @@ import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useProjects } from '../context/ProjectContext';
 import { UserProfile, Receipt, Task } from '../types';
+import ninjaMedal from '../MEDALLAS/MARKETING NINJA.png';
+import masterMedal from '../MEDALLAS/STRATEGY MASTER.png';
+import mastermindMedal from '../MEDALLAS/INFINITY MASTERMIND.png';
 
 declare var html2pdf: any;
 
@@ -53,7 +56,7 @@ const Team: React.FC = () => {
     // Como no tenemos el "rate" histórico en el recibo (si falló el guardado), 
     // intentamos deducirlo del total si es posible, o simplemente mostrar el conteo.
     // Para este fallback, solo mostraremos el conteo si no podemos calcular el monto exacto.
-    const calculatedTasksTotal = (selectedReceipt.total || 0) - (selectedReceipt.baseSalary || 0) - (selectedReceipt.ninjaBonus || 0) - (selectedReceipt.masterBonus || 0);
+    const calculatedTasksTotal = (selectedReceipt.total || 0) - (selectedReceipt.baseSalary || 0) - (selectedReceipt.ninjaBonus || 0) - (selectedReceipt.masterBonus || 0) - (selectedReceipt.mastermindBonus || 0);
 
     return {
       completedTasks: periodTasks.length,
@@ -374,14 +377,29 @@ const Team: React.FC = () => {
 
                   {(selectedReceipt.ninjaBonus || 0) > 0 && (
                     <div className="flex justify-between items-center">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Bono Ninja:</p>
+                      <div className="flex items-center gap-2.5">
+                        <img src={ninjaMedal} className="w-5 h-5 object-contain" alt="Ninja Medal" />
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Bono Ninja:</p>
+                      </div>
                       <p className="text-sm font-bold text-emerald-600">+${(selectedReceipt.ninjaBonus || 0).toFixed(2)}</p>
                     </div>
                   )}
                   {(selectedReceipt.masterBonus || 0) > 0 && (
                     <div className="flex justify-between items-center">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Bono Master:</p>
+                      <div className="flex items-center gap-2.5">
+                        <img src={masterMedal} className="w-5 h-5 object-contain" alt="Master Medal" />
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Bono Master:</p>
+                      </div>
                       <p className="text-sm font-bold text-emerald-600">+${(selectedReceipt.masterBonus || 0).toFixed(2)}</p>
+                    </div>
+                  )}
+                  {(selectedReceipt.mastermindBonus || 0) > 0 && (
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-2.5">
+                        <img src={mastermindMedal} className="w-5 h-5 object-contain" alt="Mastermind Medal" />
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Bono Mastermind:</p>
+                      </div>
+                      <p className="text-sm font-bold text-emerald-600">+${(selectedReceipt.mastermindBonus || 0).toFixed(2)}</p>
                     </div>
                   )}
                 </div>

@@ -15,32 +15,24 @@ const Login: React.FC = () => {
   // Imagen por defecto: Arte fluido morado para armonizar con el patrón orbital
   const LIQUID_ART = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=1200";
 
-  const renderSpiralPath = (startAngle: number = 0) => {
-    const points = [];
-    const centerX = 500;
-    const centerY = 500;
-    const turns = 8;
-    const pointsPerTurn = 100;
-    const totalPoints = turns * pointsPerTurn;
-    
-    // Escala para hacerlos óvalos (estirados en horizontal)
-    const scaleX = 1.6;
-    const scaleY = 1.0;
-    
-    // Distancia entre vueltas consecutivas de la espiral
-    const spacing = 130;
-    const b = spacing / (2 * Math.PI);
-    
-    for (let i = 0; i <= totalPoints; i++) {
-      const theta = (i / pointsPerTurn) * 2 * Math.PI + startAngle;
-      const r = b * (theta - startAngle);
-      const x = centerX + r * Math.cos(theta) * scaleX;
-      const y = centerY + r * Math.sin(theta) * scaleY;
-      points.push(`${x.toFixed(1)},${y.toFixed(1)}`);
-    }
-    
-    return `M ${points.join(" L ")}`;
-  };
+  // Configuración de las partículas flotantes en el fondo
+  const PARTICLES = [
+    { id: 1, left: '5%', size: 6, delay: '0s', duration: '18s' },
+    { id: 2, left: '15%', size: 8, delay: '2s', duration: '24s' },
+    { id: 3, left: '25%', size: 4, delay: '5s', duration: '16s' },
+    { id: 4, left: '38%', size: 10, delay: '1s', duration: '28s' },
+    { id: 5, left: '45%', size: 5, delay: '7s', duration: '20s' },
+    { id: 6, left: '55%', size: 7, delay: '3s', duration: '22s' },
+    { id: 7, left: '68%', size: 9, delay: '8s', duration: '26s' },
+    { id: 8, left: '78%', size: 6, delay: '4s', duration: '18s' },
+    { id: 9, left: '88%', size: 8, delay: '6s', duration: '25s' },
+    { id: 10, left: '95%', size: 4, delay: '9s', duration: '15s' },
+    { id: 11, left: '10%', size: 7, delay: '12s', duration: '23s' },
+    { id: 12, left: '30%', size: 9, delay: '14s', duration: '27s' },
+    { id: 13, left: '50%', size: 5, delay: '11s', duration: '19s' },
+    { id: 14, left: '70%', size: 8, delay: '15s', duration: '21s' },
+    { id: 15, left: '90%', size: 6, delay: '13s', duration: '24s' },
+  ];
 
   useEffect(() => {
     if (currentUser) {
@@ -69,48 +61,99 @@ const Login: React.FC = () => {
   return (
     <div className="min-h-screen flex items-center justify-center p-6 relative overflow-hidden bg-background-dark pattern-orbital">
       <style>{`
-        @keyframes spiral-spin {
-          0% { transform: translate(-50%, -50%) rotate(0deg); }
-          100% { transform: translate(-50%, -50%) rotate(360deg); }
+        @keyframes aurora-blob-1 {
+          0% { transform: translate(-10%, -15%) scale(1) rotate(0deg); }
+          50% { transform: translate(15%, 10%) scale(1.1) rotate(180deg); }
+          100% { transform: translate(-10%, -15%) scale(1) rotate(360deg); }
         }
-        @keyframes spiral-spin-reverse {
-          0% { transform: translate(-50%, -50%) rotate(360deg); }
-          100% { transform: translate(-50%, -50%) rotate(0deg); }
+        @keyframes aurora-blob-2 {
+          0% { transform: translate(10%, 15%) scale(1) rotate(0deg); }
+          50% { transform: translate(-15%, -10%) scale(1.2) rotate(-180deg); }
+          100% { transform: translate(10%, 15%) scale(1) rotate(-360deg); }
         }
-        .animate-spiral-slow {
-          animation: spiral-spin 90s linear infinite;
+        @keyframes aurora-blob-3 {
+          0% { transform: translate(-5%, 10%) scale(1) rotate(0deg); }
+          50% { transform: translate(10%, -15%) scale(0.9) rotate(180deg); }
+          100% { transform: translate(-5%, 10%) scale(1) rotate(360deg); }
         }
-        .animate-spiral-reverse {
-          animation: spiral-spin-reverse 130s linear infinite;
+        @keyframes float-particle {
+          0% {
+            transform: translateY(105vh) translateX(0px) scale(0.8);
+            opacity: 0;
+          }
+          10% {
+            opacity: 0.4;
+          }
+          90% {
+            opacity: 0.4;
+          }
+          100% {
+            transform: translateY(-5vh) translateX(50px) scale(1.3);
+            opacity: 0;
+          }
         }
       `}</style>
       
       {/* Glow ambiental morado */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/10 blur-[130px] rounded-full pointer-events-none"></div>
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/10 blur-[130px] rounded-full pointer-events-none z-[1]"></div>
 
-      {/* Espiral de bandas ovaladas animada */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0 bg-[#18171c]">
-        {/* Contenedor gigante centrado que gira lentamente */}
-        <div className="absolute top-1/2 left-1/2 w-[2200px] h-[2200px] animate-spiral-slow pointer-events-none origin-center blur-2xl">
-          <svg viewBox="0 0 1000 1000" className="w-full h-full" fill="none" xmlns="http://www.w3.org/2000/svg">
-            {/* Brazo 1 de la espiral */}
-            <path 
-              d={renderSpiralPath(0)} 
-              stroke="#1e212e" 
-              strokeWidth="65" 
-              strokeLinecap="round" 
-              transform="rotate(-30 500 500)"
-            />
-            {/* Brazo 2 de la espiral (intercalado 180 grados para completar el patrón alterno) */}
-            <path 
-              d={renderSpiralPath(Math.PI)} 
-              stroke="#1e212e" 
-              strokeWidth="65" 
-              strokeLinecap="round" 
-              transform="rotate(-30 500 500)"
-            />
-          </svg>
-        </div>
+      {/* Fondo Aurora Degradada y Partículas */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0 bg-gradient-to-br from-[#18171c] to-[#1e212e]">
+        {/* Blobs de Aurora */}
+        <div 
+          className="absolute w-[800px] h-[800px] rounded-full bg-[#9e6cff]/15 blur-[120px] pointer-events-none"
+          style={{
+            top: '-20%',
+            left: '-10%',
+            animation: 'aurora-blob-1 25s infinite ease-in-out'
+          }}
+        />
+        <div 
+          className="absolute w-[900px] h-[900px] rounded-full bg-[#3b82f6]/10 blur-[140px] pointer-events-none"
+          style={{
+            bottom: '-25%',
+            right: '-15%',
+            animation: 'aurora-blob-2 35s infinite ease-in-out'
+          }}
+        />
+        <div 
+          className="absolute w-[700px] h-[700px] rounded-full bg-[#9e6cff]/12 blur-[110px] pointer-events-none"
+          style={{
+            top: '30%',
+            left: '30%',
+            animation: 'aurora-blob-3 30s infinite ease-in-out'
+          }}
+        />
+        <div 
+          className="absolute w-[600px] h-[600px] rounded-full bg-[#8b5cf6]/10 blur-[100px] pointer-events-none"
+          style={{
+            bottom: '20%',
+            left: '-10%',
+            animation: 'aurora-blob-1 28s infinite reverse ease-in-out'
+          }}
+        />
+
+        {/* Partículas Flotantes */}
+        {PARTICLES.map((p) => (
+          <div
+            key={p.id}
+            className="absolute bg-white rounded-full pointer-events-none opacity-0"
+            style={{
+              left: p.left,
+              top: 0,
+              width: `${p.size}px`,
+              height: `${p.size}px`,
+              filter: 'blur(0.5px)',
+              boxShadow: '0 0 6px rgba(255, 255, 255, 0.8), 0 0 10px rgba(158, 108, 255, 0.3)',
+              animationName: 'float-particle',
+              animationDuration: p.duration,
+              animationTimingFunction: 'linear',
+              animationIterationCount: 'infinite',
+              animationDelay: p.delay,
+              animationFillMode: 'backwards',
+            }}
+          />
+        ))}
       </div>
 
       <div className="w-full max-w-4xl h-[580px] glass-panel rounded-[2.5rem] overflow-hidden flex animate-in fade-in zoom-in-95 duration-700 relative z-10">

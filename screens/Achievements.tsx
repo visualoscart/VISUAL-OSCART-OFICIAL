@@ -1,6 +1,9 @@
 
 import React from 'react';
 import { useProjects } from '../context/ProjectContext';
+import ninjaMedal from '../MEDALLAS/MARKETING NINJA.png';
+import masterMedal from '../MEDALLAS/STRATEGY MASTER.png';
+import mastermindMedal from '../MEDALLAS/INFINITY MASTERMIND.png';
 
 const Achievements: React.FC = () => {
   const { tasks, currentUser } = useProjects();
@@ -96,6 +99,57 @@ const Achievements: React.FC = () => {
       }).length / evaluationSet.length) * 100 
     : 0;
 
+  // Evaluar Strategy Master para periodos históricos de racha
+  const checkStrategyMasterForPeriod = (month: number, year: number) => {
+    let targetMonth = month;
+    let targetYear = year;
+    if (targetMonth < 0) {
+      targetMonth += 12;
+      targetYear -= 1;
+    }
+    if (targetMonth < 0) {
+      targetMonth += 12;
+      targetYear -= 1;
+    }
+
+    const periodTasks = tasks.filter(t => {
+      if (t.collaboratorId !== currentUser?.id) return false;
+      return isDateInPeriod(t.date, targetMonth, targetYear);
+    });
+
+    if (periodTasks.length === 0) return false;
+
+    const allDone = periodTasks.every(t => t.status === 'Completada');
+    if (!allDone) return false;
+
+    return periodTasks.every(t => {
+      if (!t.completedAt) return false;
+      const taskDate = new Date(t.date + 'T12:00:00');
+      const completedDate = new Date(t.completedAt);
+      
+      const d1 = new Date(taskDate.getFullYear(), taskDate.getMonth(), taskDate.getDate());
+      const d2 = new Date(completedDate.getFullYear(), completedDate.getMonth(), completedDate.getDate());
+      
+      const diffTime = d1.getTime() - d2.getTime();
+      const diffDays = Math.round(diffTime / (1000 * 3600 * 24));
+      
+      return diffDays >= 7;
+    });
+  };
+
+  const p0 = checkStrategyMasterForPeriod(reportingMonth, reportingYear);
+  const p1 = checkStrategyMasterForPeriod(reportingMonth - 1, reportingYear);
+  const p2 = checkStrategyMasterForPeriod(reportingMonth - 2, reportingYear);
+
+  let maxStreak = 0;
+  if (p2 && p1 && p0) maxStreak = 3;
+  else if ((p2 && p1) || (p1 && p0)) maxStreak = 2;
+  else if (p2 || p1 || p0) maxStreak = 1;
+  else maxStreak = 0;
+
+  const isInfinityMastermind = maxStreak === 3;
+  const mastermindProgress = (maxStreak / 3) * 100;
+
   const LOGROS_CONFIG = [
     {
       id: 'ninja',
@@ -108,7 +162,8 @@ const Achievements: React.FC = () => {
       glow: 'shadow-[0_0_60px_-5px_rgba(140,43,238,0.7)] border-primary/60 ring-2 ring-primary/20',
       iconColor: 'bg-primary',
       progress: ninjaProgress,
-      requirement: 'Puntualidad Absoluta'
+      requirement: 'Puntualidad Absoluta',
+      medalImg: ninjaMedal
     },
     {
       id: 'master',
@@ -121,7 +176,22 @@ const Achievements: React.FC = () => {
       glow: 'shadow-[0_0_60px_-5px_rgba(249,115,22,0.7)] border-accent-orange/60 ring-2 ring-accent-orange/20',
       iconColor: 'bg-accent-orange',
       progress: masterProgress,
-      requirement: 'Anticipación Crítica'
+      requirement: 'Anticipación Crítica',
+      medalImg: masterMedal
+    },
+    {
+      id: 'mastermind',
+      title: 'Infinity Mastermind',
+      icon: 'rocket_launch',
+      description: 'Gana el logro Strategy Master por 3 meses consecutivos.',
+      bonus: '$30 USD Bono',
+      earned: isInfinityMastermind,
+      color: 'from-[#d946ef] to-[#a855f7]',
+      glow: 'shadow-[0_0_60px_-5px_rgba(217,70,239,0.7)] border-fuchsia-500/60 ring-2 ring-fuchsia-500/20',
+      iconColor: 'bg-fuchsia-500',
+      progress: mastermindProgress,
+      requirement: 'Consistencia de Acero (Racha 3 Meses)',
+      medalImg: mastermindMedal
     }
   ];
 
@@ -159,7 +229,7 @@ const Achievements: React.FC = () => {
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {LOGROS_CONFIG.map((logro) => (
               <div 
                 key={logro.id} 
@@ -174,23 +244,37 @@ const Achievements: React.FC = () => {
                 
                 <div className={`absolute -right-8 -top-8 w-40 h-40 bg-gradient-to-br ${logro.color} blur-3xl opacity-10 group-hover:opacity-30 transition-opacity`}></div>
                 
+                {/* Estado del Logro (Posicionamiento Absoluto) */}
+                <div className="absolute top-6 right-6 z-20">
+                  {logro.earned ? (
+                    <span className="px-3.5 py-1.5 bg-emerald-500/20 text-emerald-400 text-[9px] font-bold uppercase tracking-[0.2em] rounded-xl border border-emerald-500/40 shadow-[0_0_15px_rgba(52,211,153,0.3)]">
+                      UNLOCKED
+                    </span>
+                  ) : (
+                    <span className="px-3.5 py-1.5 bg-white/5 text-slate-500 text-[9px] font-bold uppercase tracking-widest rounded-xl border border-white/5">
+                      EN PROCESO
+                    </span>
+                  )}
+                </div>
+
                 <div className="relative z-10 flex flex-col h-full">
-                  <div className="flex items-center justify-between mb-8">
-                    <div className={`w-16 h-16 rounded-[1.5rem] ${logro.earned ? `bg-gradient-to-br ${logro.color} shadow-[0_0_40px_rgba(255,255,255,0.2)]` : 'bg-white/5'} flex items-center justify-center text-white border border-white/20 transition-all duration-500 group-hover:scale-110`}>
-                      <span className={`material-symbols-outlined text-4xl ${logro.earned ? 'animate-bounce-slow text-white' : 'text-slate-600'}`}>{logro.icon}</span>
-                    </div>
-                    {logro.earned ? (
-                      <span className={`px-4 py-2 bg-emerald-500/20 text-emerald-400 text-[10px] font-bold uppercase tracking-[0.2em] rounded-xl border border-emerald-500/40 shadow-[0_0_15px_rgba(52,211,153,0.3)]`}>
-                        UNLOCKED
-                      </span>
-                    ) : (
-                      <span className="px-4 py-2 bg-white/5 text-slate-500 text-[9px] font-bold uppercase tracking-widest rounded-xl border border-white/5">
-                        EN PROCESO...
-                      </span>
-                    )}
+                  {/* Contenedor de Medalla Centrado y Grande */}
+                  <div className="mx-auto mt-4 mb-8 w-36 h-36 flex items-center justify-center transition-all duration-500 group-hover:scale-110">
+                    <img 
+                      src={logro.medalImg} 
+                      className={`w-full h-full object-contain ${logro.earned ? 'drop-shadow-[0_8px_25px_rgba(158,108,255,0.4)]' : 'grayscale opacity-25'}`} 
+                      alt={logro.title} 
+                    />
                   </div>
-                  <h3 className={`text-2xl font-bold mb-2 tracking-tight uppercase transition-colors duration-500 ${logro.earned ? 'text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]' : 'text-slate-500'}`}>{logro.title}</h3>
-                  <p className="text-slate-400 text-xs leading-relaxed mb-10 flex-1 opacity-70">"{logro.description}"</p>
+
+                  <div className="text-center flex-1 flex flex-col">
+                    <h3 className={`text-2xl font-bold mb-2 tracking-tight uppercase transition-colors duration-500 ${logro.earned ? 'text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]' : 'text-slate-500'}`}>
+                      {logro.title}
+                    </h3>
+                    <p className="text-slate-400 text-xs leading-relaxed mb-8 flex-1 opacity-70">
+                      "{logro.description}"
+                    </p>
+                  </div>
                   
                   <div className="space-y-6 pt-6 border-t border-white/5">
                     <div className="flex items-center justify-between">
@@ -231,7 +315,7 @@ const Achievements: React.FC = () => {
                 <div className="text-center">
                    <p className="text-[9px] font-medium text-slate-600 uppercase tracking-widest mb-2 opacity-60">Acumulado Total</p>
                    <div className="flex items-baseline gap-2">
-                      <span className="text-5xl font-bold text-emerald-400 tracking-tighter drop-shadow-[0_0_20px_rgba(52,211,153,0.3)]">${(isMarketingNinja ? 10 : 0) + (isStrategyMaster ? 20 : 0)}</span>
+                      <span className="text-5xl font-bold text-emerald-400 tracking-tighter drop-shadow-[0_0_20px_rgba(52,211,153,0.3)]">${(isMarketingNinja ? 10 : 0) + (isStrategyMaster ? 20 : 0) + (isInfinityMastermind ? 30 : 0)}</span>
                       <span className="text-slate-600 font-medium text-[10px] uppercase tracking-widest">USD</span>
                    </div>
                 </div>

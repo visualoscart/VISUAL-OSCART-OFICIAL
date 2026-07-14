@@ -356,7 +356,9 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
         setReceipts(rRes.data.map(r => ({
           id: String(r.id), userId: r.user_id, userName: r.user_name,
           month: r.month, year: r.year, baseSalary: Number(r.base_salary),
-          ninjaBonus: Number(r.ninja_bonus), masterBonus: Number(r.master_bonus),
+          ninjaBonus: Number(r.ninja_bonus), 
+          masterBonus: Number(r.master_bonus) === 50 ? 20 : Number(r.master_bonus),
+          mastermindBonus: Number(r.master_bonus) === 50 ? 30 : 0,
           completedTasks: r.completed_tasks, tasksTotal: r.tasks_total,
           total: Number(r.total), date: r.date, receiptNumber: r.receipt_number,
           incomeId: r.income_id
@@ -716,30 +718,51 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
         return { success: false };
       },
       updateProject: async (id, d) => { 
+        const existingProj = projects.find(p => String(p.id) === String(id));
         const payload: any = { ...d };
         
-        // Handle brandCode mapping: store inside typography if typography is being updated
+        // Recuperar y fusionar siempre la tipografía existente para no perder clasificaciones, driveFolderId, etc.
+        const existingTypo = existingProj?.typography || {};
+        let nextTypography = { ...existingTypo };
+
+        // Si existe brandCode en la base del proyecto (que viene mapeado de typography.brandCode)
+        if (existingProj?.brandCode) {
+          nextTypography.brandCode = existingProj.brandCode;
+        }
+
+        if (d.typography !== undefined) { 
+           nextTypography = { ...nextTypography, ...d.typography };
+        }
+        
         if (d.brandCode !== undefined) {
-           if (payload.typography) {
-             payload.typography = { ...payload.typography, brandCode: d.brandCode };
-           } else {
-             payload.typography = { brandCode: d.brandCode };
-           }
+           nextTypography.brandCode = d.brandCode;
            delete payload.brandCode;
         }
         
         if (d.driveFolderId !== undefined) {
-           if (payload.typography) {
-             payload.typography = { ...payload.typography, driveFolderId: d.driveFolderId };
-           } else {
-             // Retrieve existing typography to not overwrite it if we only update driveFolderId
-             // But usually it's fine since we spread. Wait, if payload.typography isn't there, we should merge.
-             // It's safer to let Supabase merge JSON or just fetch it. 
-             // Actually, we can fetch the existing project from context:
-             const existingProj = projects.find(p => String(p.id) === String(id));
-             payload.typography = { ...(existingProj?.typography || {}), driveFolderId: d.driveFolderId };
-           }
+           nextTypography.driveFolderId = d.driveFolderId;
            delete payload.driveFolderId;
+        }
+        
+        if (d.mediaClassifications !== undefined) {
+           nextTypography.mediaClassifications = d.mediaClassifications;
+           delete payload.mediaClassifications;
+        }
+        
+        if (d.coverUrl !== undefined) {
+           nextTypography.coverUrl = d.coverUrl;
+           delete payload.coverUrl;
+        }
+
+        // Si se actualizó la tipografía o cualquiera de sus campos internos, asignarla al payload
+        if (
+          d.typography !== undefined ||
+          d.brandCode !== undefined ||
+          d.driveFolderId !== undefined ||
+          d.mediaClassifications !== undefined ||
+          d.coverUrl !== undefined
+        ) {
+          payload.typography = nextTypography;
         }
 
         if (d.monthlyFee !== undefined) { payload.monthly_fee = Number(d.monthlyFee); delete payload.monthlyFee; }
@@ -749,28 +772,6 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
         if (d.textRepository !== undefined) { payload.text_repository = d.textRepository; delete payload.textRepository; }
         if (d.mediaRepository !== undefined) { payload.media_repository = d.mediaRepository; delete payload.mediaRepository; }
         if (d.collaborators !== undefined) { payload.collaborators = d.collaborators; }
-        if (d.typography !== undefined) { 
-           payload.typography = { ...payload.typography, ...d.typography };
-           // If d.brandCode was also set, it's already in payload.typography from logic above
-        }
-        
-        if (d.mediaClassifications !== undefined) {
-           const existingProj = projects.find(p => String(p.id) === String(id));
-           payload.typography = {
-             ...(payload.typography || existingProj?.typography || {}),
-             mediaClassifications: d.mediaClassifications
-           };
-           delete payload.mediaClassifications;
-        }
-        
-        if (d.coverUrl !== undefined) {
-           const existingProj = projects.find(p => String(p.id) === String(id));
-           payload.typography = {
-             ...(payload.typography || existingProj?.typography || {}),
-             coverUrl: d.coverUrl
-           };
-           delete payload.coverUrl;
-        }
         
         const { error } = await supabase.from('projects').update(payload).eq('id', id); 
         if (error) {
@@ -1100,7 +1101,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
             year: Number(r.year), 
             base_salary: Number(r.baseSalary), 
             ninja_bonus: Number(r.ninjaBonus), 
-            master_bonus: Number(r.masterBonus),
+            master_bonus: Number(r.masterBonus) + Number(r.mastermindBonus || 0),
             completed_tasks: r.completedTasks,
             tasks_total: r.tasksTotal,
             total: Number(r.total), 
@@ -1120,7 +1121,7 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
               year: Number(r.year), 
               base_salary: Number(r.baseSalary), 
               ninja_bonus: Number(r.ninjaBonus), 
-              master_bonus: Number(r.masterBonus),
+              master_bonus: Number(r.masterBonus) + Number(r.mastermindBonus || 0),
               total: Number(r.total), 
               date: r.date, 
               receipt_number: r.receiptNumber 

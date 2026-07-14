@@ -39,6 +39,7 @@ export interface Receipt {
   baseSalary: number;
   ninjaBonus: number;
   masterBonus: number;
+  mastermindBonus?: number;
   completedTasks?: number;
   tasksTotal?: number;
   total: number;

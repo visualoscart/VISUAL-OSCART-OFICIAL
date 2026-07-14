@@ -95,8 +95,8 @@ const Dashboard: React.FC = () => {
           
           {/* Dashboard Superior Banner */}
           <div className="w-full h-32 lg:h-44 rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/5 relative group bg-slate-900 animate-in fade-in zoom-in-95 duration-700">
-             <img src={dashboardBanner} className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-1000" alt="Dashboard Hub" />
-             <div className="absolute inset-0 bg-gradient-to-r from-background-dark/60 to-transparent flex items-center px-12">
+             <img src={dashboardBanner} className="w-full h-full object-cover object-right opacity-80 group-hover:scale-105 transition-transform duration-1000" alt="Dashboard Hub" />
+             <div className="absolute inset-0 bg-gradient-to-r from-background-dark/70 to-transparent hidden md:flex items-center px-12">
                 <div className="max-w-md">
                    <h1 className="text-3xl font-black text-white uppercase tracking-tighter drop-shadow-lg leading-tight">{dashboardBannerTitle || 'Intelligence Hub'}</h1>
                    <p className="text-[9px] font-black text-white/60 uppercase tracking-[0.4em] mt-2 leading-relaxed">{dashboardBannerSubtitle || 'Sincronización global de activos y métricas de rendimiento'}</p>

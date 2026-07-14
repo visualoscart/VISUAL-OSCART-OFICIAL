@@ -5,6 +5,9 @@ import { Meeting, MeetingCategory, MeetingDuration } from '../types';
 import receiptHeaderImg from '../RECIBO.png';
 import quoteHeaderImg from '../COTIZACION.png';
 import footerImg from '../PIE RECIBO COTI.png';
+import ninjaMedal from '../MEDALLAS/MARKETING NINJA.png';
+import masterMedal from '../MEDALLAS/STRATEGY MASTER.png';
+import mastermindMedal from '../MEDALLAS/INFINITY MASTERMIND.png';
 
 
 const AdminDashboard: React.FC = () => {
@@ -320,16 +323,53 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
+  const checkSocioStrategyMasterForPeriod = (uId: string, m: number, y: number) => {
+    let targetMonth = m;
+    let targetYear = y;
+    if (targetMonth < 0) {
+      targetMonth += 12;
+      targetYear -= 1;
+    }
+    if (targetMonth < 0) {
+      targetMonth += 12;
+      targetYear -= 1;
+    }
+
+    const userTasks = tasks.filter(t => 
+      String(t.collaboratorId) === String(uId) &&
+      t.date && isDateInPeriod(t.date, targetMonth, targetYear)
+    );
+    if (userTasks.length === 0) return false;
+    
+    const allDone = userTasks.every(t => t.status === 'Completada');
+    if (!allDone) return false;
+
+    return userTasks.every(t => {
+      if (!t.completedAt || !t.date) return false;
+      const taskDate = new Date(t.date + 'T12:00:00');
+      const completedDate = new Date(t.completedAt);
+      if (isNaN(taskDate.getTime()) || isNaN(completedDate.getTime())) return false;
+      
+      const d1 = new Date(taskDate.getFullYear(), taskDate.getMonth(), taskDate.getDate());
+      const d2 = new Date(completedDate.getFullYear(), completedDate.getMonth(), completedDate.getDate());
+      
+      const diffTime = d1.getTime() - d2.getTime();
+      const diffDays = Math.round(diffTime / (1000 * 3600 * 24));
+      
+      return diffDays >= 7;
+    });
+  };
+
   const calculateUserBonuses = (userId: string) => {
     try {
       const userTasks = tasks.filter(t => 
         String(t.collaboratorId) === String(userId) &&
         t.date && isDateInPeriod(t.date, selectedPeriod.month, selectedPeriod.year)
       );
-      if (userTasks.length === 0) return { ninja: false, master: false };
+      if (userTasks.length === 0) return { ninja: false, master: false, mastermind: false };
       
       const allDone = userTasks.every(t => t.status === 'Completada');
-      if (!allDone) return { ninja: false, master: false };
+      if (!allDone) return { ninja: false, master: false, mastermind: false };
 
       const isNinja = userTasks.every(t => {
         if (!t.completedAt || !t.date) return false;
@@ -357,9 +397,13 @@ const AdminDashboard: React.FC = () => {
         return diffDays >= 7;
       });
 
-      return { ninja: isNinja, master: isMaster };
+      const isMastermind = isMaster && 
+        checkSocioStrategyMasterForPeriod(userId, selectedPeriod.month - 1, selectedPeriod.year) && 
+        checkSocioStrategyMasterForPeriod(userId, selectedPeriod.month - 2, selectedPeriod.year);
+
+      return { ninja: isNinja, master: isMaster, mastermind: isMastermind };
     } catch (e) {
-      return { ninja: false, master: false };
+      return { ninja: false, master: false, mastermind: false };
     }
   };
 
@@ -387,7 +431,8 @@ const AdminDashboard: React.FC = () => {
       const bonuses = calculateUserBonuses(u.id);
       const ninjaBonusVal = bonuses.ninja ? 10 : 0;
       const masterBonusVal = bonuses.master ? 20 : 0;
-      const totalPay = basePay + (completed * rate) + ninjaBonusVal + masterBonusVal;
+      const mastermindBonusVal = bonuses.mastermind ? 30 : 0;
+      const totalPay = basePay + (completed * rate) + ninjaBonusVal + masterBonusVal + mastermindBonusVal;
 
       // Desglose por marca para este miembro
       const memberBrands = projects.filter(p => p.status !== 'Inactivo').map(p => {
@@ -633,7 +678,8 @@ const AdminDashboard: React.FC = () => {
     const bonuses = calculateUserBonuses(user.id);
     const ninjaBonusVal = bonuses.ninja ? 10 : 0;
     const masterBonusVal = bonuses.master ? 20 : 0;
-    const totalPay = base + tasksTotal + ninjaBonusVal + masterBonusVal;
+    const mastermindBonusVal = bonuses.mastermind ? 30 : 0;
+    const totalPay = base + tasksTotal + ninjaBonusVal + masterBonusVal + mastermindBonusVal;
 
     if (totalPay <= 0) {
       showToast("El total a pagar debe ser mayor a $0 para procesar esta nómina", "error");
@@ -663,6 +709,7 @@ const AdminDashboard: React.FC = () => {
       baseSalary: base, 
       ninjaBonus: ninjaBonusVal, 
       masterBonus: masterBonusVal,
+      mastermindBonus: mastermindBonusVal,
       completedTasks, 
       tasksTotal,
       incomeId,
@@ -875,20 +922,20 @@ const AdminDashboard: React.FC = () => {
 
   return (
     <div className="flex-1 flex flex-col h-full bg-transparent overflow-y-auto scrollbar-hide relative pattern-orbital font-display">
-      <header className="px-10 py-6 border-b border-white/5 flex items-center justify-between sticky top-0 z-40 bg-background-dark/40 backdrop-blur-3xl">
+      <header className="px-6 md:px-10 py-6 border-b border-white/5 flex flex-col lg:flex-row lg:items-center justify-between gap-6 sticky top-0 z-40 bg-background-dark/40 backdrop-blur-3xl">
         <div className="flex items-center gap-5">
-            <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary border border-primary/20 shadow-lg">
-                <span className="material-symbols-outlined text-2xl">admin_panel_settings</span>
+            <div className="w-10 h-10 md:w-12 md:h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary border border-primary/20 shadow-lg shrink-0">
+                <span className="material-symbols-outlined text-xl md:text-2xl">admin_panel_settings</span>
             </div>
             <div>
-                <h2 className="text-3xl font-black text-white tracking-tight uppercase leading-none">Control Maestro <span className="text-primary">.</span></h2>
+                <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight uppercase leading-none">Control Maestro <span className="text-primary">.</span></h2>
                 <p className="text-slate-500 text-[9px] font-black uppercase tracking-[0.3em] mt-0.5 opacity-60">Global Master Protocol</p>
             </div>
         </div>
-        <nav className="flex bg-black/40 p-1.5 rounded-2xl border border-white/5 gap-1.5 backdrop-blur-md">
+        <nav className="flex bg-black/40 p-1.5 rounded-2xl border border-white/5 gap-1.5 backdrop-blur-md overflow-x-auto max-w-full scrollbar-hide shrink-0">
           {[ {id:'analytics', icon:'grid_view'}, {id:'rendimiento', icon:'monitoring'}, {id:'receipts', icon:'receipt_long'}, {id:'users', icon:'group'}, {id:'settings', icon:'tune'}, {id:'meetings', icon:'video_call'}, {id:'agenda', icon:'edit_note'} ].map(tab => (
-            <button key={tab.id} title={tab.id} onClick={() => setActiveView(tab.id as any)} className={`p-3 rounded-xl transition-all ${activeView === tab.id ? (tab.id === 'meetings' ? 'bg-orange-500 text-white shadow-xl' : tab.id === 'agenda' ? 'bg-violet-600 text-white shadow-xl' : 'bg-primary text-white shadow-xl') : 'text-slate-500 hover:text-white'}`}>
-              <span className="material-symbols-outlined text-xl">{tab.icon}</span>
+            <button key={tab.id} title={tab.id} onClick={() => setActiveView(tab.id as any)} className={`p-2.5 md:p-3 rounded-xl transition-all shrink-0 ${activeView === tab.id ? (tab.id === 'meetings' ? 'bg-orange-500 text-white shadow-xl' : tab.id === 'agenda' ? 'bg-violet-600 text-white shadow-xl' : 'bg-primary text-white shadow-xl') : 'text-slate-500 hover:text-white'}`}>
+              <span className="material-symbols-outlined text-lg md:text-xl">{tab.icon}</span>
             </button>
           ))}
         </nav>
@@ -2544,7 +2591,7 @@ const AdminDashboard: React.FC = () => {
             <div className="p-8 border-b border-white/5 bg-white/[0.01]">
               <h3 className="text-xs font-semibold text-white uppercase tracking-widest">Rendimiento por Miembro y Valorización</h3>
             </div>
-            <div className="overflow-x-auto">
+            <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-left">
                   <thead className="bg-white/5 text-xs uppercase text-slate-600 font-semibold tracking-widest border-b border-white/5">
                     <tr>
@@ -2574,16 +2621,21 @@ const AdminDashboard: React.FC = () => {
                           <td className="px-8 py-6 text-center">
                             <div className="flex gap-3 items-center justify-center">
                               {m.bonuses?.ninja ? (
-                                <span className="px-3 py-1 bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[9px] font-semibold rounded-xl uppercase tracking-wider flex items-center gap-1">
-                                  <span className="material-symbols-outlined text-xs">military_tech</span> Ninja
+                                <span className="px-2.5 py-1 bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[9px] font-semibold rounded-xl uppercase tracking-wider flex items-center gap-1.5 shadow-sm">
+                                  <img src={ninjaMedal} className="w-4 h-4 object-contain" alt="Ninja" /> Ninja
                                 </span>
                               ) : null}
                               {m.bonuses?.master ? (
-                                <span className="px-3 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[9px] font-semibold rounded-xl uppercase tracking-wider flex items-center gap-1">
-                                  <span className="material-symbols-outlined text-xs">verified</span> Master
+                                <span className="px-2.5 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[9px] font-semibold rounded-xl uppercase tracking-wider flex items-center gap-1.5 shadow-sm">
+                                  <img src={masterMedal} className="w-4 h-4 object-contain" alt="Master" /> Master
                                 </span>
                               ) : null}
-                              {!m.bonuses?.ninja && !m.bonuses?.master && (
+                              {m.bonuses?.mastermind ? (
+                                <span className="px-2.5 py-1 bg-purple-500/10 border border-purple-500/20 text-purple-400 text-[9px] font-semibold rounded-xl uppercase tracking-wider flex items-center gap-1.5 shadow-sm">
+                                  <img src={mastermindMedal} className="w-4 h-4 object-contain" alt="Infinity" /> Infinity
+                                </span>
+                              ) : null}
+                              {!m.bonuses?.ninja && !m.bonuses?.master && !m.bonuses?.mastermind && (
                                 <span className="text-[10px] text-slate-600 font-semibold uppercase tracking-widest">-</span>
                               )}
                             </div>
@@ -2702,7 +2754,176 @@ const AdminDashboard: React.FC = () => {
                     ))}
                   </tbody>
                 </table>
-              </div>
+            </div>
+
+            {/* Vista de Celular: Tarjetas Adaptables Apiladas */}
+            <div className="block md:hidden p-6 space-y-4">
+              {performanceMetrics.byMember.map(m => {
+                const isExpanded = expandedMemberId === m.id;
+                return (
+                  <div key={m.id} className="bg-black/20 rounded-3xl border border-white/5 overflow-hidden transition-all shadow-lg">
+                    {/* Cabecera de Tarjeta de Miembro */}
+                    <div className="p-5 flex items-center justify-between cursor-pointer hover:bg-white/[0.02]" onClick={() => setExpandedMemberId(isExpanded ? null : m.id)}>
+                      <div className="flex items-center gap-4">
+                        <img src={m.avatar} className="w-10 h-10 rounded-xl object-cover border border-white/10 shrink-0" />
+                        <div className="min-w-0">
+                          <span className="font-semibold text-white uppercase tracking-tight block text-xs truncate">{m.name}</span>
+                          <span className="text-[9px] text-slate-500 font-semibold uppercase tracking-widest block mt-0.5">{m.role}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="text-right">
+                          <span className="font-bold text-primary text-sm block">${m.totalPay.toLocaleString('es-ES')}</span>
+                        </div>
+                        <span className={`material-symbols-outlined text-primary text-lg transition-transform duration-300 ${isExpanded ? 'rotate-90' : ''}`}>chevron_right</span>
+                      </div>
+                    </div>
+
+                    {/* Resumen de Misiones y Medallas en Celular */}
+                    <div className="px-5 pb-4 pt-3 border-t border-white/5 flex flex-wrap gap-4 items-center justify-between bg-black/10">
+                      <div className="flex gap-4">
+                        <div>
+                          <span className="text-[8px] text-slate-500 block uppercase font-semibold">Hechas</span>
+                          <span className="text-xs font-bold text-orange-400">{m.completed}</span>
+                        </div>
+                        <div>
+                          <span className="text-[8px] text-slate-500 block uppercase font-semibold">Pendientes</span>
+                          <span className="text-xs font-bold text-rose-400">{m.pending}</span>
+                        </div>
+                      </div>
+                      
+                      <div className="flex flex-wrap gap-1">
+                        {m.bonuses?.ninja && (
+                          <span className="px-2 py-0.5 bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[8px] font-semibold rounded-lg uppercase flex items-center gap-1 shrink-0">
+                            <img src={ninjaMedal} className="w-3 h-3 object-contain" /> Ninja
+                          </span>
+                        )}
+                        {m.bonuses?.master && (
+                          <span className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[8px] font-semibold rounded-lg uppercase flex items-center gap-1 shrink-0">
+                            <img src={masterMedal} className="w-3 h-3 object-contain" /> Master
+                          </span>
+                        )}
+                        {m.bonuses?.mastermind && (
+                          <span className="px-2 py-0.5 bg-purple-500/10 border border-purple-500/20 text-purple-400 text-[8px] font-semibold rounded-lg uppercase flex items-center gap-1 shrink-0">
+                            <img src={mastermindMedal} className="w-3 h-3 object-contain" /> Infinity
+                          </span>
+                        )}
+                        {!m.bonuses?.ninja && !m.bonuses?.master && !m.bonuses?.mastermind && (
+                          <span className="text-[9px] text-slate-600 font-semibold uppercase tracking-widest">-</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Contenido Expandido del Colaborador en Celular */}
+                    {isExpanded && (
+                      <div className="p-5 bg-black/40 border-t border-white/5 space-y-6 animate-in fade-in duration-300">
+                        {/* Rendimiento por Canal */}
+                        <div>
+                          <h4 className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-3">Rendimiento por Canal</h4>
+                          <div className="space-y-2">
+                            {m.brands.length > 0 ? m.brands.map((b, bi) => (
+                              <div key={bi} className="bg-white/5 rounded-xl p-3 border border-white/5 flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                  <img src={b.logo} className="w-7 h-7 rounded-lg object-cover border border-white/10 shrink-0" />
+                                  <span className="text-[9px] font-bold text-white uppercase tracking-widest truncate">{b.name}</span>
+                                </div>
+                                <div className="flex gap-3">
+                                  <div className="flex items-center gap-1">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-orange-500"></div>
+                                    <span className="text-[10px] font-semibold text-orange-400">{b.completed}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-rose-500"></div>
+                                    <span className="text-[10px] font-semibold text-rose-400">{b.pending}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            )) : (
+                              <p className="text-[9px] font-semibold text-slate-600 uppercase text-center py-2">Sin actividad registrada</p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Configuración de Pago (Apilada verticalmente) */}
+                        <div className="border-t border-white/5 pt-4 space-y-4">
+                          <h4 className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Configuración de Pago</h4>
+                          
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1.5 text-left">
+                              <label className="text-[8px] font-semibold text-slate-500 uppercase tracking-widest px-1">Sueldo Base</label>
+                              <div className="relative w-full">
+                                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-primary font-semibold text-xs">$</span>
+                                <input 
+                                  type="number" 
+                                  className="w-full bg-black/40 border border-white/5 text-white text-xs font-semibold rounded-xl pl-6 pr-2 py-2 outline-none" 
+                                  value={baseSalaries[m.id] || 0} 
+                                  onChange={e => updateBaseSalary(m.id, parseFloat(e.target.value) || 0)} 
+                                />
+                              </div>
+                            </div>
+
+                            <div className="space-y-1.5 text-left">
+                              <label className="text-[8px] font-semibold text-slate-500 uppercase tracking-widest px-1">Valor Tarea</label>
+                              <div className="relative w-full">
+                                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-primary font-semibold text-xs">$</span>
+                                <input 
+                                  type="number" 
+                                  className="w-full bg-black/40 border border-white/5 text-white text-xs font-semibold rounded-xl pl-6 pr-2 py-2 outline-none" 
+                                  value={m.rate} 
+                                  onChange={e => updateTaskRate(m.id, parseFloat(e.target.value) || 0)} 
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1.5 text-left">
+                              <label className="text-[8px] font-semibold text-slate-500 uppercase tracking-widest px-1">Día Pago</label>
+                              <input 
+                                type="number" min="1" max="31" 
+                                className="w-full bg-black/40 border border-white/5 text-white text-xs font-semibold rounded-xl px-3 py-2 outline-none text-center"
+                                value={financeSettings.payrollDays?.[m.id] || 20}
+                                onChange={e => {
+                                  const payrollDays = { ...(financeSettings.payrollDays || {}), [m.id]: parseInt(e.target.value) || 20 };
+                                  updateFinanceSettings({ payrollDays });
+                                }}
+                              />
+                            </div>
+
+                            <div className="space-y-1.5 text-left">
+                              <label className="text-[8px] font-semibold text-slate-500 uppercase tracking-widest px-1">Ligar Fondeo</label>
+                              <select 
+                                className="w-full bg-black/40 border border-white/5 text-white text-[9px] font-semibold rounded-xl px-2 py-2 outline-none"
+                                value={financeSettings.payrollLinks?.[m.id] || ''}
+                                onChange={e => {
+                                  const payrollLinks = { ...(financeSettings.payrollLinks || {}), [m.id]: e.target.value };
+                                  updateFinanceSettings({ payrollLinks });
+                                }}
+                              >
+                                <option value="" className="bg-slate-900">Elegir...</option>
+                                {incomes.map(inc => (
+                                  <option key={inc.id} value={inc.id} className="bg-slate-900">{inc.source}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+
+                          <div className="pt-2">
+                            <button 
+                              disabled={isProcessingPayment === m.id} 
+                              onClick={() => handleProcessPayment(m.userObj)} 
+                              className="w-full py-3 bg-orange-500 text-white text-[10px] font-bold uppercase rounded-xl shadow-xl active:scale-95 transition-all"
+                            >
+                              {isProcessingPayment === m.id ? 'Sincronizando...' : 'EJECUTAR PAGO'}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
 
@@ -2873,7 +3094,7 @@ const AdminDashboard: React.FC = () => {
                       </div>
                     </>
                   )}
-                  <button type="submit" disabled={isRegistering} className={`lg:col-span-3 mt-4 btn-premium text-white font-semibold text-xs uppercase rounded-[2rem] h-16 shadow-2xl active:scale-95 transition-all ${userType === 'cliente' ? 'border-t border-cyan-500/20 shadow-cyan-500/5' : ''}`}>
+                  <button type="submit" disabled={isRegistering} className={`col-span-full mt-4 btn-premium text-white font-semibold text-xs uppercase rounded-[2rem] h-16 shadow-2xl active:scale-95 transition-all ${userType === 'cliente' ? 'border-t border-cyan-500/20 shadow-cyan-500/5' : ''}`}>
                     {isRegistering 
                       ? 'Procesando Protocolo...' 
                       : userType === 'socio' 
@@ -2904,6 +3125,8 @@ const AdminDashboard: React.FC = () => {
               </div>
 
               <div className="glass-panel rounded-[2.5rem] overflow-hidden border border-white/5 shadow-2xl">
+                {/* Vista de Escritorio: Tabla */}
+                <div className="hidden md:block overflow-x-auto">
                   <table className="w-full text-left">
                      <thead className="bg-white/5 text-[9px] uppercase text-slate-600 font-semibold tracking-widest border-b border-white/5">
                        <tr><th className="px-8 py-5">{viewUserType === 'cliente' ? 'Identidad del Cliente' : 'Identidad del Socio'}</th><th className="px-8 py-5">Gestión de Claves</th><th className="px-8 py-5 text-right">Administración</th></tr>
@@ -2913,23 +3136,25 @@ const AdminDashboard: React.FC = () => {
                          const isClient = u.role?.toLowerCase().startsWith('cliente');
                          return viewUserType === 'cliente' ? isClient : !isClient;
                        }).map(u => (
-                        <tr key={u.id} className="hover:bg-white/[0.02] group transition-colors">
-                          <td className="px-8 py-6 flex items-center gap-5">
-                            <img src={getUserAvatar(u)} className="w-12 h-12 rounded-2xl object-cover shadow-xl border border-white/10" />
-                            <div>
-                               <div className="flex items-center gap-3">
-                                 <span className="font-semibold text-white uppercase tracking-tight block">{u.firstName} {u.lastName}</span>
-                                 <span className={`text-[8px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${
-                                   u.role?.toLowerCase().startsWith('cliente') 
-                                     ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20 shadow-lg shadow-cyan-500/5' 
-                                     : 'bg-primary/10 text-primary border-primary/20'
-                                 }`}>
-                                   {u.role}
-                                 </span>
+                         <tr key={u.id} className="hover:bg-white/[0.02] group transition-colors">
+                           <td className="px-8 py-6">
+                             <div className="flex items-center gap-5 w-full">
+                               <img src={getUserAvatar(u)} className="w-12 h-12 rounded-2xl object-cover shadow-xl border border-white/10 shrink-0" />
+                               <div className="flex-1 min-w-0">
+                                  <div className="flex items-center justify-between gap-5 w-full">
+                                    <span className="font-semibold text-white uppercase tracking-normal block shrink-0">{u.firstName} {u.lastName}</span>
+                                    <span className={`text-[8px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full border shrink-0 whitespace-nowrap ${
+                                      u.role?.toLowerCase().startsWith('cliente') 
+                                        ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20 shadow-lg shadow-cyan-500/5' 
+                                        : 'bg-primary/10 text-primary border-primary/20'
+                                    }`}>
+                                      {u.role}
+                                    </span>
+                                  </div>
+                                  <span className="text-[9px] text-slate-500 font-semibold uppercase tracking-widest block">{u.email}</span>
                                </div>
-                               <span className="text-[9px] text-slate-500 font-semibold uppercase tracking-widest">{u.email}</span>
-                            </div>
-                          </td>
+                             </div>
+                           </td>
                           <td className="px-8 py-6">
                              <div className="flex items-center gap-3">
                                <input type="text" className="bg-black/40 border border-white/5 rounded-xl px-5 py-2.5 text-white font-mono text-xs w-32 outline-none" value={tempPasswords[u.id] !== undefined ? tempPasswords[u.id] : (u.password || '')} onChange={e => setTempPasswords(prev => ({ ...prev, [u.id]: e.target.value }))} />
@@ -2944,7 +3169,62 @@ const AdminDashboard: React.FC = () => {
                         </tr>
                       ))}
                     </tbody>
-                 </table>
+                  </table>
+                </div>
+
+                {/* Vista de Celular: Tarjetas Apiladas */}
+                <div className="block md:hidden p-6 space-y-4">
+                  {usersDB.filter(u => {
+                    const isClient = u.role?.toLowerCase().startsWith('cliente');
+                    return viewUserType === 'cliente' ? isClient : !isClient;
+                  }).map(u => (
+                    <div key={u.id} className="bg-black/20 border border-white/5 rounded-2xl p-5 space-y-4 hover:border-primary/20 transition-all flex flex-col">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <img src={getUserAvatar(u)} className="w-10 h-10 rounded-xl object-cover border border-white/10 shrink-0" />
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-white uppercase tracking-tight block text-xs truncate">{u.firstName} {u.lastName}</span>
+                            </div>
+                            <span className="text-[9px] text-slate-500 font-semibold uppercase tracking-widest block truncate">{u.email}</span>
+                          </div>
+                        </div>
+                        
+                        {/* Botón eliminar */}
+                        <button onClick={() => deleteUser(u.id)} className="w-8 h-8 rounded-lg text-rose-500 hover:bg-rose-500/10 transition-all flex items-center justify-center shrink-0">
+                          <span className="material-symbols-outlined text-lg">person_remove</span>
+                        </button>
+                      </div>
+
+                      <div className="border-t border-white/5 pt-3 flex flex-wrap gap-4 items-center justify-between bg-black/10 px-4 py-2.5 rounded-xl">
+                        <div>
+                          <span className="text-[8px] text-slate-500 block uppercase font-semibold">Rol asignado</span>
+                          <span className={`text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                            u.role?.toLowerCase().startsWith('cliente') 
+                              ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' 
+                              : 'bg-primary/10 text-primary border-primary/20'
+                          }`}>
+                            {u.role}
+                          </span>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <div className="relative">
+                            <input 
+                              type="text" 
+                              className="bg-black/40 border border-white/5 rounded-lg px-3 py-1.5 text-white font-mono text-[10px] w-28 outline-none" 
+                              value={tempPasswords[u.id] !== undefined ? tempPasswords[u.id] : (u.password || '')} 
+                              onChange={e => setTempPasswords(prev => ({ ...prev, [u.id]: e.target.value }))} 
+                            />
+                          </div>
+                          <button onClick={() => handleUpdateUserPassword(u.id)} className="text-primary active:scale-95 transition-transform flex items-center justify-center">
+                            <span className="material-symbols-outlined text-lg">check_circle</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               {/* Matriz de Honorarios por Marca */}
@@ -2952,35 +3232,67 @@ const AdminDashboard: React.FC = () => {
                 <div className="p-8 border-b border-white/5 bg-white/[0.01]">
                   <h3 className="text-xs font-semibold text-white uppercase tracking-widest">Matriz de Honorarios por Marca</h3>
                 </div>
-                <table className="w-full text-left">
-                  <thead className="bg-white/5 text-[9px] uppercase text-slate-600 font-semibold tracking-widest">
-                    <tr><th className="px-8 py-5">Identificador de Marca</th><th className="px-8 py-5">Fee Mensual Contratado ($)</th><th className="px-8 py-5 text-right">Gestión</th></tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/5 text-sm">
-                    {projects.filter(p => p.status !== 'Inactivo').map(p => (
-                      <tr key={p.id} className="hover:bg-white/[0.02] group transition-colors">
-                        <td className="px-8 py-6 flex items-center gap-5">
-                          <img src={p.logoUrl} className="w-12 h-12 rounded-2xl object-cover shadow-2xl border border-white/10" />
-                          <div>
-                            <span className="font-semibold text-white uppercase tracking-tight block">{p.name}</span>
-                            <span className="text-[9px] text-slate-600 font-semibold uppercase tracking-widest">{p.niche}</span>
+                {/* Vista de Escritorio: Tabla */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead className="bg-white/5 text-[9px] uppercase text-slate-600 font-semibold tracking-widest">
+                      <tr><th className="px-8 py-5">Identificador de Marca</th><th className="px-8 py-5">Fee Mensual Contratado ($)</th><th className="px-8 py-5 text-right">Gestión</th></tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5 text-sm">
+                      {projects.filter(p => p.status !== 'Inactivo').map(p => (
+                        <tr key={p.id} className="hover:bg-white/[0.02] group transition-colors">
+                          <td className="px-8 py-6 flex items-center gap-5">
+                            <img src={p.logoUrl} className="w-12 h-12 rounded-2xl object-cover shadow-2xl border border-white/10" />
+                            <div>
+                              <span className="font-semibold text-white uppercase tracking-tight block">{p.name}</span>
+                              <span className="text-[9px] text-slate-600 font-semibold uppercase tracking-widest">{p.niche}</span>
+                            </div>
+                          </td>
+                          <td className="px-8 py-6">
+                            <div className="relative w-32">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-orange-500 font-semibold text-xs">$</span>
+                              <input type="number" className="w-full bg-black/40 border border-white/5 rounded-xl px-7 py-3 text-orange-500 font-bold text-lg outline-none focus:border-orange-500/20" value={p.monthlyFee || 0} onChange={e => updateProject(p.id, { monthlyFee: Number(e.target.value) })} />
+                            </div>
+                          </td>
+                          <td className="px-8 py-6 text-right">
+                            <button onClick={() => deleteProject(p.id)} className="w-10 h-10 rounded-xl text-rose-500/20 hover:text-rose-500 hover:bg-rose-500/10 transition-all flex items-center justify-center ml-auto">
+                              <span className="material-symbols-outlined text-2xl">delete_sweep</span>
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Vista de Celular: Tarjetas */}
+                <div className="block md:hidden p-6 space-y-4">
+                  {projects.filter(p => p.status !== 'Inactivo').map(p => (
+                    <div key={p.id} className="bg-black/20 border border-white/5 rounded-2xl p-5 space-y-4 hover:border-orange-500/20 transition-all flex flex-col">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <img src={p.logoUrl} className="w-10 h-10 rounded-xl object-cover border border-white/10 shrink-0" />
+                          <div className="min-w-0">
+                            <span className="font-semibold text-white uppercase tracking-tight block text-xs truncate">{p.name}</span>
+                            <span className="text-[9px] text-slate-500 font-semibold uppercase tracking-widest block mt-0.5">{p.niche}</span>
                           </div>
-                        </td>
-                        <td className="px-8 py-6">
-                          <div className="relative w-32">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-orange-500 font-semibold text-xs">$</span>
-                            <input type="number" className="w-full bg-black/40 border border-white/5 rounded-xl px-7 py-3 text-orange-500 font-bold text-lg outline-none focus:border-orange-500/20" value={p.monthlyFee || 0} onChange={e => updateProject(p.id, { monthlyFee: Number(e.target.value) })} />
-                          </div>
-                        </td>
-                        <td className="px-8 py-6 text-right">
-                          <button onClick={() => deleteProject(p.id)} className="w-10 h-10 rounded-xl text-rose-500/20 hover:text-rose-500 hover:bg-rose-500/10 transition-all flex items-center justify-center ml-auto">
-                            <span className="material-symbols-outlined text-2xl">delete_sweep</span>
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                        </div>
+                        
+                        <button onClick={() => deleteProject(p.id)} className="w-8 h-8 rounded-lg text-rose-500 hover:bg-rose-500/10 transition-all flex items-center justify-center shrink-0">
+                          <span className="material-symbols-outlined text-lg">delete_sweep</span>
+                        </button>
+                      </div>
+
+                      <div className="border-t border-white/5 pt-3 flex flex-col space-y-1.5 text-left bg-black/10 px-4 py-3 rounded-xl">
+                        <span className="text-[8px] text-slate-500 block uppercase font-semibold">Fee Mensual Contratado</span>
+                        <div className="relative w-full">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-orange-500 font-semibold text-xs">$</span>
+                          <input type="number" className="w-full bg-black/40 border border-white/5 rounded-xl pl-7 pr-3 py-2 text-orange-500 font-bold text-sm outline-none" value={p.monthlyFee || 0} onChange={e => updateProject(p.id, { monthlyFee: Number(e.target.value) })} />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           )}
@@ -3118,49 +3430,124 @@ const AdminDashboard: React.FC = () => {
                 })}
               </div>
 
-              {/* Calendario */}
-              <div className="glass-panel rounded-3xl border border-white/5 overflow-hidden shadow-2xl">
-                <div className="grid grid-cols-7 bg-black/40">
-                  {['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'].map(d => (
-                    <div key={d} className="p-3 text-center text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] border-b border-white/5">{d}</div>
-                  ))}
+              {/* Calendario (Escritorio) */}
+              <div className="hidden md:block glass-panel rounded-3xl border border-white/5 overflow-hidden shadow-2xl overflow-x-auto scrollbar-hide">
+                <div className="min-w-[700px]">
+                  <div className="grid grid-cols-7 bg-black/40">
+                    {['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'].map(d => (
+                      <div key={d} className="p-3 text-center text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] border-b border-white/5">{d}</div>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-7 gap-px bg-white/5">
+                    {Array.from({ length: meetFirstDay }).map((_, i) => (
+                      <div key={i} className="bg-black/30 min-h-[130px]" />
+                    ))}
+                    {Array.from({ length: meetDaysInMonth }).map((_, i) => {
+                      const day = i + 1;
+                      const m = String(meetMonth + 1).padStart(2, '0');
+                      const d = String(day).padStart(2, '0');
+                      const dateStr = `${meetYear}-${m}-${d}`;
+                      const dayMeetings = getMeetingsForDay(day);
+                      const isToday = day === meetToday.getDate() && meetMonth === meetToday.getMonth() && meetYear === meetToday.getFullYear();
+                      return (
+                        <div key={day} className="bg-black/20 min-h-[130px] p-2 border-r border-b border-white/5 hover:bg-orange-500/5 transition-colors group relative">
+                          <div className="flex justify-between items-start mb-1.5">
+                            <span className={`text-[10px] font-black px-2 py-1 rounded-lg ${isToday ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30' : 'text-slate-600'}`}>{day}</span>
+                            {dayMeetings.length > 2 && <span className="text-[7px] font-black text-orange-400 bg-orange-500/10 px-1 py-0.5 rounded">+{dayMeetings.length - 2}</span>}
+                          </div>
+                          <div className="space-y-1">
+                            {dayMeetings.slice(0, 2).map(mt => {
+                              const c = CATEGORY_COLORS[mt.category];
+                              return (
+                                <button key={mt.id} onClick={() => setSelectedMeeting(mt)}
+                                  className={`w-full text-left p-1.5 rounded-lg border text-[9px] font-bold truncate transition-all hover:brightness-125 ${c.bg} ${c.border} ${c.text} flex items-center gap-1.5`}>
+                                  {mt.hasMeet && <span className="material-symbols-outlined text-[10px] shrink-0">videocam</span>}
+                                  <span className="truncate">{mt.time} · {mt.title}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                          <button onClick={() => { setMeetInitialDate(dateStr); setShowMeetModal(true); }}
+                            className="absolute bottom-2 right-2 w-6 h-6 bg-orange-500/10 text-orange-400 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:bg-orange-500 hover:text-white border border-orange-500/20">
+                            <span className="material-symbols-outlined text-xs">add</span>
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-                <div className="grid grid-cols-7 gap-px bg-white/5">
-                  {Array.from({ length: meetFirstDay }).map((_, i) => (
-                    <div key={i} className="bg-black/30 min-h-[130px]" />
-                  ))}
-                  {Array.from({ length: meetDaysInMonth }).map((_, i) => {
-                    const day = i + 1;
-                    const m = String(meetMonth + 1).padStart(2, '0');
-                    const d = String(day).padStart(2, '0');
-                    const dateStr = `${meetYear}-${m}-${d}`;
-                    const dayMeetings = getMeetingsForDay(day);
-                    const isToday = day === meetToday.getDate() && meetMonth === meetToday.getMonth() && meetYear === meetToday.getFullYear();
-                    return (
-                      <div key={day} className="bg-black/20 min-h-[130px] p-2 border-r border-b border-white/5 hover:bg-orange-500/5 transition-colors group relative">
-                        <div className="flex justify-between items-start mb-1.5">
-                          <span className={`text-[10px] font-black px-2 py-1 rounded-lg ${isToday ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30' : 'text-slate-600'}`}>{day}</span>
-                          {dayMeetings.length > 2 && <span className="text-[7px] font-black text-orange-400 bg-orange-500/10 px-1 py-0.5 rounded">+{dayMeetings.length - 2}</span>}
-                        </div>
-                        <div className="space-y-1">
-                          {dayMeetings.slice(0, 2).map(mt => {
-                            const c = CATEGORY_COLORS[mt.category];
-                            return (
-                              <button key={mt.id} onClick={() => setSelectedMeeting(mt)}
-                                className={`w-full text-left p-1.5 rounded-lg border text-[9px] font-bold truncate transition-all hover:brightness-125 ${c.bg} ${c.border} ${c.text} flex items-center gap-1.5`}>
-                                {mt.hasMeet && <span className="material-symbols-outlined text-[10px] shrink-0">videocam</span>}
-                                <span className="truncate">{mt.time} · {mt.title}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                        <button onClick={() => { setMeetInitialDate(dateStr); setShowMeetModal(true); }}
-                          className="absolute bottom-2 right-2 w-6 h-6 bg-orange-500/10 text-orange-400 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:bg-orange-500 hover:text-white border border-orange-500/20">
-                          <span className="material-symbols-outlined text-xs">add</span>
-                        </button>
+              </div>
+
+              {/* Calendario (Móvil: Lista de Reuniones del Mes) */}
+              <div className="block md:hidden space-y-4">
+                <div className="glass-panel p-6 rounded-3xl border border-white/5 space-y-4">
+                  <div className="flex items-center justify-between border-b border-white/5 pb-3">
+                    <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Reuniones de este Mes</h4>
+                    <span className="text-[9px] font-bold text-orange-400 bg-orange-500/10 px-2.5 py-1 rounded-full border border-orange-500/20">
+                      {meetings.filter(m => {
+                        const parts = m.date.split('-');
+                        const yr = parseInt(parts[0]);
+                        const mo = parseInt(parts[1]) - 1;
+                        return yr === meetYear && mo === meetMonth;
+                      }).length} PROGRAMADAS
+                    </span>
+                  </div>
+                  <div className="space-y-3 max-h-[380px] overflow-y-auto scrollbar-hide pr-1">
+                    {meetings
+                      .filter(m => {
+                        const parts = m.date.split('-');
+                        const yr = parseInt(parts[0]);
+                        const mo = parseInt(parts[1]) - 1;
+                        return yr === meetYear && mo === meetMonth;
+                      })
+                      .sort((a, b) => `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`))
+                      .map(mt => {
+                        const c = CATEGORY_COLORS[mt.category];
+                        const dateParts = mt.date.split('-');
+                        const dayNum = parseInt(dateParts[2]);
+                        const dateObj = new Date(meetYear, meetMonth, dayNum);
+                        const formattedDate = dateObj.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric' });
+                        return (
+                          <div key={mt.id} onClick={() => setSelectedMeeting(mt)} className="bg-black/20 border border-white/5 rounded-2xl p-4 space-y-3 hover:border-orange-500/20 transition-all cursor-pointer">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <p className="text-[10px] font-bold text-orange-400 capitalize">{formattedDate}</p>
+                                <h4 className="text-xs font-bold text-white uppercase tracking-tight mt-1">{mt.title}</h4>
+                              </div>
+                              <span className={`text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${c.bg} ${c.border} ${c.text}`}>
+                                {mt.category}
+                              </span>
+                            </div>
+                            
+                            <div className="flex justify-between items-center border-t border-white/5 pt-2.5">
+                              <div className="flex items-center gap-1.5 text-slate-500">
+                                <span className="material-symbols-outlined text-xs">schedule</span>
+                                <span className="text-[10px] font-semibold">{mt.time}</span>
+                              </div>
+                              
+                              {mt.hasMeet && (
+                                <span className="flex items-center gap-1 text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-lg text-[8px] font-black uppercase">
+                                  <span className="material-symbols-outlined text-[10px]">videocam</span>
+                                  Enlace
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    
+                    {meetings.filter(m => {
+                      const parts = m.date.split('-');
+                      const yr = parseInt(parts[0]);
+                      const mo = parseInt(parts[1]) - 1;
+                      return yr === meetYear && mo === meetMonth;
+                    }).length === 0 && (
+                      <div className="text-center py-12 bg-black/10 rounded-2xl border border-white/5">
+                        <span className="material-symbols-outlined text-2xl text-slate-700 mb-2">event_busy</span>
+                        <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Sin reuniones agendadas este mes</p>
                       </div>
-                    );
-                  })}
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -3210,211 +3597,7 @@ const AdminDashboard: React.FC = () => {
                 );
               })()}
 
-              {/* MODAL: Nueva Reunión */}
-              {showMeetModal && (
-                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-2xl animate-in fade-in" onClick={() => setShowMeetModal(false)}>
-                  <div className="max-w-lg w-full glass-panel border border-white/10 rounded-[2rem] shadow-2xl p-8 space-y-6 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-orange-500/20 rounded-xl flex items-center justify-center text-orange-400 border border-orange-500/30">
-                        <span className="material-symbols-outlined">video_call</span>
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-bold text-white uppercase tracking-tight">Nueva <span className="text-orange-400">Reunión</span></h3>
-                        <p className="text-[9px] text-slate-500 uppercase tracking-widest">Agendar videoconferencia</p>
-                      </div>
-                    </div>
-
-                    <form onSubmit={handleSaveMeeting} className="space-y-5">
-                      {/* Título */}
-                      <div className="space-y-1.5">
-                        <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-1">Nombre de la Reunión *</label>
-                        <input required className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-white text-sm outline-none focus:border-orange-500/40" placeholder="Ej: Kickoff con Cliente X" value={meetForm.title} onChange={e => setMeetForm(f => ({ ...f, title: e.target.value }))} />
-                      </div>
-
-                      {/* Categoría */}
-                      <div className="space-y-2">
-                        <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-1">Categoría</label>
-                        <div className="grid grid-cols-1 gap-2">
-                          {CATEGORIES.map(cat => {
-                            const c = CATEGORY_COLORS[cat];
-                            const active = meetForm.category === cat;
-                            return (
-                              <button key={cat} type="button" onClick={() => setMeetForm(f => ({ ...f, category: cat }))}
-                                className={`flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${active ? `${c.bg} ${c.border} ${c.text}` : 'bg-black/20 border-white/5 text-slate-500 hover:border-white/20'}`}>
-                                <span className={`w-3 h-3 rounded-full shrink-0 ${active ? c.dot : 'bg-slate-700'}`} />
-                                <span className="text-[10px] font-black uppercase tracking-wider">{cat}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      {/* Proyecto */}
-                      <div className="space-y-1.5">
-                        <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-1">Proyecto / Marca (opcional)</label>
-                        <select className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-white text-sm outline-none focus:border-orange-500/40" value={meetForm.projectId} onChange={e => setMeetForm(f => ({ ...f, projectId: e.target.value }))}>
-                          <option value="">Sin proyecto</option>
-                          {projects.filter(p => p.status !== 'Inactivo').map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                        </select>
-                      </div>
-
-                      {/* Fecha + Hora */}
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                          <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-1">Fecha *</label>
-                          <input required type="date" className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-white text-sm outline-none focus:border-orange-500/40" value={meetForm.date} onChange={e => setMeetForm(f => ({ ...f, date: e.target.value }))} />
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-1">Hora *</label>
-                          <input required type="time" className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-white text-sm outline-none focus:border-orange-500/40" value={meetForm.time} onChange={e => setMeetForm(f => ({ ...f, time: e.target.value }))} />
-                        </div>
-                      </div>
-
-                      {/* Duración */}
-                      <div className="space-y-2">
-                        <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-1">Duración</label>
-                        <div className="grid grid-cols-4 gap-2">
-                          {DURATIONS.map(dur => (
-                            <button key={dur.value} type="button" onClick={() => setMeetForm(f => ({ ...f, duration: dur.value }))}
-                              className={`py-3 rounded-xl text-[9px] font-black uppercase border transition-all ${meetForm.duration === dur.value ? 'bg-orange-500 border-orange-500 text-white shadow-lg' : 'bg-black/30 border-white/10 text-slate-500 hover:text-white'}`}>
-                              {dur.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Notas */}
-                      <div className="space-y-1.5">
-                        <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-1">Agenda / Notas</label>
-                        <textarea rows={3} className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-white text-sm outline-none focus:border-orange-500/40 resize-none" placeholder="Temas a tratar..." value={meetForm.notes} onChange={e => setMeetForm(f => ({ ...f, notes: e.target.value }))} />
-                      </div>
-
-                      {/* Toggle Google Meet */}
-                      <div
-                        onClick={() => setMeetForm(f => ({ ...f, hasMeet: !f.hasMeet }))}
-                        className={`flex items-center justify-between p-5 rounded-2xl border cursor-pointer transition-all ${
-                          meetForm.hasMeet ? 'bg-orange-500/15 border-orange-500/40' : 'bg-black/20 border-white/10 hover:border-white/20'
-                        }`}>
-                        <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
-                            meetForm.hasMeet ? 'bg-orange-500 text-white' : 'bg-white/5 text-slate-500'
-                          }`}>
-                            <span className="material-symbols-outlined text-xl">videocam</span>
-                          </div>
-                          <div>
-                            <p className={`text-sm font-black uppercase tracking-tight ${meetForm.hasMeet ? 'text-orange-300' : 'text-slate-400'}`}>Agregar Google Meet</p>
-                            <p className="text-[9px] text-slate-600 uppercase tracking-widest">Genera link de videoconferencia</p>
-                          </div>
-                        </div>
-                        <div className={`w-12 h-6 rounded-full transition-all relative ${
-                          meetForm.hasMeet ? 'bg-orange-500' : 'bg-white/10'
-                        }`}>
-                          <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all ${
-                            meetForm.hasMeet ? 'left-6' : 'left-0.5'
-                          }`} />
-                        </div>
-                      </div>
-
-                      {/* Acciones */}
-                      <div className="flex gap-3 pt-2">
-                        <button type="button" onClick={() => setShowMeetModal(false)} className="flex-1 py-4 bg-white/5 text-slate-500 font-black text-[10px] uppercase rounded-2xl hover:text-white transition-colors">Cancelar</button>
-                        <button type="submit" disabled={isSavingMeeting} className="flex-1 py-4 bg-orange-500 hover:bg-orange-400 text-white font-black text-[10px] uppercase rounded-2xl shadow-2xl transition-all active:scale-95 disabled:opacity-50">
-                          {isSavingMeeting ? 'Creando...' : meetForm.hasMeet ? 'Crear + Meet' : 'Agendar Reunión'}
-                        </button>
-                      </div>
-                    </form>
-                  </div>
-                </div>
-              )}
-
-              {/* MODAL: Detalle de Reunión */}
-              {selectedMeeting && (
-                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-2xl animate-in fade-in" onClick={() => setSelectedMeeting(null)}>
-                  <div className="max-w-md w-full glass-panel border border-white/10 rounded-[2rem] shadow-2xl p-8 space-y-6" onClick={e => e.stopPropagation()}>
-                    {(() => {
-                      const c = CATEGORY_COLORS[selectedMeeting.category];
-                      const proj = projects.find(p => p.id === selectedMeeting.projectId);
-                      const dateObj = new Date(selectedMeeting.date + 'T12:00:00');
-                      const dayName = dateObj.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
-                      const durLabel = DURATIONS.find(d => d.value === selectedMeeting.duration)?.label;
-                      return (
-                        <>
-                          {/* Header */}
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-center gap-3">
-                              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border ${selectedMeeting.hasMeet ? 'bg-orange-500 text-white border-orange-400' : `${c.bg} ${c.text} ${c.border}`}`}>
-                                <span className="material-symbols-outlined text-2xl">{selectedMeeting.hasMeet ? 'videocam' : 'event'}</span>
-                              </div>
-                              <div>
-                                <h3 className={`text-lg font-black uppercase tracking-tight ${c.text}`}>{selectedMeeting.title}</h3>
-                                <p className="text-[9px] text-slate-500 uppercase tracking-widest mt-0.5">{selectedMeeting.category}</p>
-                              </div>
-                            </div>
-                            <button onClick={() => setSelectedMeeting(null)} className="w-8 h-8 bg-white/5 rounded-xl text-slate-500 hover:text-white flex items-center justify-center border border-white/5 transition-colors">
-                              <span className="material-symbols-outlined text-sm">close</span>
-                            </button>
-                          </div>
-
-                          {/* Info */}
-                          <div className="space-y-3">
-                            <div className={`flex items-center gap-3 p-4 rounded-2xl border ${c.bg} ${c.border}`}>
-                              <span className="material-symbols-outlined text-slate-400 text-lg">calendar_today</span>
-                              <div>
-                                <p className={`text-sm font-black ${c.text} capitalize`}>{dayName}</p>
-                                <p className="text-[9px] text-slate-500 uppercase tracking-widest">{selectedMeeting.time} · {durLabel}</p>
-                              </div>
-                            </div>
-                            {proj && (
-                              <div className="flex items-center gap-3 p-4 rounded-2xl border bg-white/5 border-white/5">
-                                {proj.logoUrl && <img src={proj.logoUrl} className="w-8 h-8 rounded-xl object-cover border border-white/20" />}
-                                <div>
-                                  <p className="text-sm font-black text-white">{proj.name}</p>
-                                  <p className="text-[9px] text-slate-500 uppercase tracking-widest">Proyecto relacionado</p>
-                                </div>
-                              </div>
-                            )}
-                            {selectedMeeting.notes && (
-                              <div className="p-4 rounded-2xl bg-white/5 border border-white/5">
-                                <p className="text-[9px] text-slate-500 uppercase tracking-widest mb-1">Agenda</p>
-                                <p className="text-sm text-slate-300 leading-relaxed">{selectedMeeting.notes}</p>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Meet Actions */}
-                          {selectedMeeting.hasMeet && selectedMeeting.meetLink && (
-                            <div className="space-y-3">
-                              <div className="p-4 rounded-2xl bg-orange-500/10 border border-orange-500/30">
-                                <p className="text-[8px] text-orange-400 uppercase tracking-widest font-black mb-2">Link de Videoconferencia</p>
-                                <p className="text-xs text-orange-300 font-mono break-all">{selectedMeeting.meetLink}</p>
-                              </div>
-                              <div className="grid grid-cols-2 gap-3">
-                                <a href={selectedMeeting.meetLink} target="_blank" rel="noreferrer"
-                                  className="flex items-center justify-center gap-2 py-4 bg-orange-500 hover:bg-orange-400 text-white font-black text-[10px] uppercase rounded-2xl shadow-2xl transition-all active:scale-95">
-                                  <span className="material-symbols-outlined text-lg">videocam</span>
-                                  Entrar
-                                </a>
-                                <button onClick={() => handleCopyInvite(selectedMeeting)}
-                                  className={`flex items-center justify-center gap-2 py-4 font-black text-[10px] uppercase rounded-2xl border transition-all active:scale-95 ${
-                                    copiedMeet ? 'bg-orange-500/20 border-orange-500/40 text-orange-300' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'
-                                  }`}>
-                                  <span className="material-symbols-outlined text-lg">{copiedMeet ? 'check' : 'content_copy'}</span>
-                                  {copiedMeet ? 'Copiado!' : 'Copiar'}
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                          {/* Eliminar */}
-                          <button onClick={() => handleDeleteMeeting(selectedMeeting)} disabled={isDeletingMeeting}
-                            className="w-full py-4 bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500 hover:text-white font-black text-[10px] uppercase rounded-2xl transition-all active:scale-95 disabled:opacity-50">
-                            {isDeletingMeeting ? 'Eliminando...' : 'Eliminar Reunión'}
-                          </button>
-                        </>
-                      );
-                    })()}
-                  </div>
-                </div>
-              )}
+              {/* Los modales de reuniones fueron trasladados al final del árbol de renderizado para evitar problemas de stacking context (z-index) */}
 
             </div>
           )}
@@ -3746,37 +3929,39 @@ const AdminDashboard: React.FC = () => {
                     </div>
 
                     {/* Grid visual de 7 días */}
-                    <div className="grid grid-cols-7 gap-2">
-                      {weekDays.map((wd, i) => {
-                        const ds = fmtDate(wd);
-                        const wTasks = tasksForDay(ds);
-                        const isToday = ds === todayStr;
-                        const done = wTasks.filter(t => t.completed).length;
-                        return (
-                          <div key={ds} onClick={() => { setAgendaCurrentDate(wd); setAgendaSubView('dia'); }}
-                            className={`cursor-pointer p-3 rounded-2xl border text-center transition-all hover:border-violet-500/30 hover:bg-violet-500/5
-                              ${isToday ? 'border-violet-500/40 bg-violet-500/10' : 'border-white/5 glass-panel'}`}>
-                            <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">{dayLabels[i]}</p>
-                            <p className={`text-xl font-black mt-1 ${isToday ? 'text-violet-400' : 'text-white'}`}>{wd.getDate()}</p>
-                            {wTasks.length > 0 ? (
-                              <>
-                                <div className="mt-2 space-y-1">
-                                  {wTasks.slice(0, 3).map((t, ti) => (
-                                    <div key={t.id} className={`text-[8px] px-1.5 py-0.5 rounded-full font-semibold truncate
-                                      ${t.completed ? 'bg-violet-500/20 text-violet-400' : 'bg-white/10 text-slate-300'}`}>
-                                      {ti + 1}. {t.title}
-                                    </div>
-                                  ))}
-                                  {wTasks.length > 3 && <p className="text-[8px] text-slate-600">+{wTasks.length - 3} más</p>}
-                                </div>
-                                <p className="text-[9px] text-slate-500 mt-2">{done}/{wTasks.length} ✓</p>
-                              </>
-                            ) : (
-                              <p className="text-[9px] text-slate-700 mt-3">—</p>
-                            )}
-                          </div>
-                        );
-                      })}
+                    <div className="overflow-x-auto scrollbar-hide">
+                      <div className="grid grid-cols-7 gap-2 min-w-[650px]">
+                        {weekDays.map((wd, i) => {
+                          const ds = fmtDate(wd);
+                          const wTasks = tasksForDay(ds);
+                          const isToday = ds === todayStr;
+                          const done = wTasks.filter(t => t.completed).length;
+                          return (
+                            <div key={ds} onClick={() => { setAgendaCurrentDate(wd); setAgendaSubView('dia'); }}
+                              className={`cursor-pointer p-3 rounded-2xl border text-center transition-all hover:border-violet-500/30 hover:bg-violet-500/5
+                                ${isToday ? 'border-violet-500/40 bg-violet-500/10' : 'border-white/5 glass-panel'}`}>
+                              <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">{dayLabels[i]}</p>
+                              <p className={`text-xl font-black mt-1 ${isToday ? 'text-violet-400' : 'text-white'}`}>{wd.getDate()}</p>
+                              {wTasks.length > 0 ? (
+                                <>
+                                  <div className="mt-2 space-y-1">
+                                    {wTasks.slice(0, 3).map((t, ti) => (
+                                      <div key={t.id} className={`text-[8px] px-1.5 py-0.5 rounded-full font-semibold truncate
+                                        ${t.completed ? 'bg-violet-500/20 text-violet-400' : 'bg-white/10 text-slate-300'}`}>
+                                        {ti + 1}. {t.title}
+                                      </div>
+                                    ))}
+                                    {wTasks.length > 3 && <p className="text-[8px] text-slate-600">+{wTasks.length - 3} más</p>}
+                                  </div>
+                                  <p className="text-[9px] text-slate-500 mt-2">{done}/{wTasks.length} ✓</p>
+                                </>
+                              ) : (
+                                <p className="text-[9px] text-slate-700 mt-3">—</p>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
 
                     {/* Lista detallada por día */}
@@ -3831,32 +4016,36 @@ const AdminDashboard: React.FC = () => {
                       </button>
                     </div>
 
-                    <div className="grid grid-cols-7 gap-1 text-center">
-                      {dayLabels.map(dl => (
-                        <p key={dl} className="text-[9px] font-black uppercase tracking-widest text-slate-600 py-2">{dl}</p>
-                      ))}
-                    </div>
+                    <div className="overflow-x-auto scrollbar-hide">
+                      <div className="min-w-[500px]">
+                        <div className="grid grid-cols-7 gap-1 text-center">
+                          {dayLabels.map(dl => (
+                            <p key={dl} className="text-[9px] font-black uppercase tracking-widest text-slate-600 py-2">{dl}</p>
+                          ))}
+                        </div>
 
-                    <div className="grid grid-cols-7 gap-1">
-                      {Array.from({ length: mesOffset }).map((_, i) => <div key={`e-${i}`} />)}
-                      {Array.from({ length: mesDaysInMonth }, (_, i) => {
-                        const day = i + 1;
-                        const ds = `${mesYear}-${String(mesMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                        const mTasks = tasksForDay(ds);
-                        const isToday = ds === todayStr;
-                        return (
-                          <div key={day}
-                            onClick={() => { setAgendaCurrentDate(new Date(mesYear, mesMonth, day)); setAgendaSubView('dia'); }}
-                            className={`cursor-pointer p-2 rounded-xl text-center min-h-[56px] transition-all hover:bg-violet-500/10
-                              ${isToday ? 'border border-violet-500/40 bg-violet-500/10' : 'border border-white/5 hover:border-violet-500/30'}`}>
-                            <p className={`text-sm font-bold ${isToday ? 'text-violet-400' : 'text-slate-400'}`}>{day}</p>
-                            {dayDot(ds)}
-                            {mTasks.length > 0 && (
-                              <p className="text-[8px] text-slate-600 font-semibold mt-0.5">{mTasks.length}</p>
-                            )}
-                          </div>
-                        );
-                      })}
+                        <div className="grid grid-cols-7 gap-1">
+                          {Array.from({ length: mesOffset }).map((_, i) => <div key={`e-${i}`} />)}
+                          {Array.from({ length: mesDaysInMonth }, (_, i) => {
+                            const day = i + 1;
+                            const ds = `${mesYear}-${String(mesMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                            const mTasks = tasksForDay(ds);
+                            const isToday = ds === todayStr;
+                            return (
+                              <div key={day}
+                                onClick={() => { setAgendaCurrentDate(new Date(mesYear, mesMonth, day)); setAgendaSubView('dia'); }}
+                                className={`cursor-pointer p-2 rounded-xl text-center min-h-[56px] transition-all hover:bg-violet-500/10
+                                  ${isToday ? 'border border-violet-500/40 bg-violet-500/10' : 'border border-white/5 hover:border-violet-500/30'}`}>
+                                <p className={`text-sm font-bold ${isToday ? 'text-violet-400' : 'text-slate-400'}`}>{day}</p>
+                                {dayDot(ds)}
+                                {mTasks.length > 0 && (
+                                  <p className="text-[8px] text-slate-600 font-semibold mt-0.5">{mTasks.length}</p>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
                     </div>
 
                     <div className="flex items-center gap-6 justify-center pt-2">
@@ -3958,6 +4147,215 @@ const AdminDashboard: React.FC = () => {
 
         </div>
       </div>
+
+      {/* MODALES DE REUNIONES TRASLADADOS AL FINAL PARA EVITAR STACKING CONTEXT (Z-INDEX) */}
+
+      {/* MODAL: Nueva Reunión */}
+      {showMeetModal && (
+        <div className="fixed inset-0 z-[200] grid place-items-center p-4 bg-black/80 backdrop-blur-2xl overflow-y-auto scrollbar-hide animate-in fade-in" onClick={() => setShowMeetModal(false)}>
+          <div className="max-w-lg w-full glass-panel border border-white/10 rounded-[2rem] shadow-2xl p-8 space-y-6 my-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-orange-500/20 rounded-xl flex items-center justify-center text-orange-400 border border-orange-500/30">
+                <span className="material-symbols-outlined">video_call</span>
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white uppercase tracking-tight">Nueva <span className="text-orange-400">Reunión</span></h3>
+                <p className="text-[9px] text-slate-500 uppercase tracking-widest">Agendar videoconferencia</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleSaveMeeting} className="space-y-5">
+              {/* Título */}
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-1">Nombre de la Reunión *</label>
+                <input required className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-white text-sm outline-none focus:border-orange-500/40" placeholder="Ej: Kickoff con Cliente X" value={meetForm.title} onChange={e => setMeetForm(f => ({ ...f, title: e.target.value }))} />
+              </div>
+
+              {/* Categoría */}
+              <div className="space-y-2">
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-1">Categoría</label>
+                <div className="grid grid-cols-1 gap-2">
+                  {CATEGORIES.map(cat => {
+                    const c = CATEGORY_COLORS[cat];
+                    const active = meetForm.category === cat;
+                    return (
+                      <button key={cat} type="button" onClick={() => setMeetForm(f => ({ ...f, category: cat }))}
+                        className={`flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${active ? `${c.bg} ${c.border} ${c.text}` : 'bg-black/20 border-white/5 text-slate-500 hover:border-white/20'}`}>
+                        <span className={`w-3 h-3 rounded-full shrink-0 ${active ? c.dot : 'bg-slate-700'}`} />
+                        <span className="text-[10px] font-black uppercase tracking-wider">{cat}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Proyecto */}
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-1">Proyecto / Marca (opcional)</label>
+                <select className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-white text-sm outline-none focus:border-orange-500/40" value={meetForm.projectId} onChange={e => setMeetForm(f => ({ ...f, projectId: e.target.value }))}>
+                  <option value="">Sin proyecto</option>
+                  {projects.filter(p => p.status !== 'Inactivo').map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </div>
+
+              {/* Fecha + Hora */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-1">Fecha *</label>
+                  <input required type="date" className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-white text-sm outline-none focus:border-orange-500/40" value={meetForm.date} onChange={e => setMeetForm(f => ({ ...f, date: e.target.value }))} />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-1">Hora *</label>
+                  <input required type="time" className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-white text-sm outline-none focus:border-orange-500/40" value={meetForm.time} onChange={e => setMeetForm(f => ({ ...f, time: e.target.value }))} />
+                </div>
+              </div>
+
+              {/* Duración */}
+              <div className="space-y-2">
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-1">Duración</label>
+                <div className="grid grid-cols-4 gap-2">
+                  {DURATIONS.map(dur => (
+                    <button key={dur.value} type="button" onClick={() => setMeetForm(f => ({ ...f, duration: dur.value }))}
+                      className={`py-3 rounded-xl text-[9px] font-black uppercase border transition-all ${meetForm.duration === dur.value ? 'bg-orange-500 border-orange-500 text-white shadow-lg' : 'bg-black/30 border-white/10 text-slate-500 hover:text-white'}`}>
+                      {dur.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Notas */}
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-1">Agenda / Notas</label>
+                <textarea rows={3} className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-white text-sm outline-none focus:border-orange-500/40 resize-none" placeholder="Temas a tratar..." value={meetForm.notes} onChange={e => setMeetForm(f => ({ ...f, notes: e.target.value }))} />
+              </div>
+
+              {/* Toggle Google Meet */}
+              <div
+                onClick={() => setMeetForm(f => ({ ...f, hasMeet: !f.hasMeet }))}
+                className={`flex items-center justify-between p-5 rounded-2xl border cursor-pointer transition-all ${
+                  meetForm.hasMeet ? 'bg-orange-500/15 border-orange-500/40' : 'bg-black/20 border-white/10 hover:border-white/20'
+                }`}>
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
+                    meetForm.hasMeet ? 'bg-orange-500 text-white' : 'bg-white/5 text-slate-500'
+                  }`}>
+                    <span className="material-symbols-outlined text-xl">videocam</span>
+                  </div>
+                  <div>
+                    <p className={`text-sm font-black uppercase tracking-tight ${meetForm.hasMeet ? 'text-orange-300' : 'text-slate-400'}`}>Agregar Google Meet</p>
+                    <p className="text-[9px] text-slate-600 uppercase tracking-widest">Genera link de videoconferencia</p>
+                  </div>
+                </div>
+                <div className={`w-12 h-6 rounded-full transition-all relative ${
+                  meetForm.hasMeet ? 'bg-orange-500' : 'bg-white/10'
+                }`}>
+                  <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all ${
+                    meetForm.hasMeet ? 'left-6' : 'left-0.5'
+                  }`} />
+                </div>
+              </div>
+
+              {/* Acciones */}
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={() => setShowMeetModal(false)} className="flex-1 py-4 bg-white/5 text-slate-500 font-black text-[10px] uppercase rounded-2xl hover:text-white transition-colors">Cancelar</button>
+                <button type="submit" disabled={isSavingMeeting} className="flex-1 py-4 bg-orange-500 hover:bg-orange-400 text-white font-black text-[10px] uppercase rounded-2xl shadow-2xl transition-all active:scale-95 disabled:opacity-50">
+                  {isSavingMeeting ? 'Creando...' : meetForm.hasMeet ? 'Crear + Meet' : 'Agendar Reunión'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Detalle de Reunión */}
+      {selectedMeeting && (
+        <div className="fixed inset-0 z-[200] grid place-items-center p-4 bg-black/80 backdrop-blur-2xl overflow-y-auto scrollbar-hide animate-in fade-in" onClick={() => setSelectedMeeting(null)}>
+          <div className="max-w-md w-full glass-panel border border-white/10 rounded-[2rem] shadow-2xl p-8 space-y-6 my-auto" onClick={e => e.stopPropagation()}>
+            {(() => {
+              const c = CATEGORY_COLORS[selectedMeeting.category];
+              const proj = projects.find(p => p.id === selectedMeeting.projectId);
+              const dateObj = new Date(selectedMeeting.date + 'T12:00:00');
+              const dayName = dateObj.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+              const durLabel = DURATIONS.find(d => d.value === selectedMeeting.duration)?.label;
+              return (
+                <>
+                  {/* Header */}
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border ${selectedMeeting.hasMeet ? 'bg-orange-500 text-white border-orange-400' : `${c.bg} ${c.text} ${c.border}`}`}>
+                        <span className="material-symbols-outlined text-2xl">{selectedMeeting.hasMeet ? 'videocam' : 'event'}</span>
+                      </div>
+                      <div>
+                        <h3 className={`text-lg font-black uppercase tracking-tight ${c.text}`}>{selectedMeeting.title}</h3>
+                        <p className="text-[9px] text-slate-500 uppercase tracking-widest mt-0.5">{selectedMeeting.category}</p>
+                      </div>
+                    </div>
+                    <button onClick={() => setSelectedMeeting(null)} className="w-8 h-8 bg-white/5 rounded-xl text-slate-500 hover:text-white flex items-center justify-center border border-white/5 transition-colors">
+                      <span className="material-symbols-outlined text-sm">close</span>
+                    </button>
+                  </div>
+
+                  {/* Info */}
+                  <div className="space-y-3">
+                    <div className={`flex items-center gap-3 p-4 rounded-2xl border ${c.bg} ${c.border}`}>
+                      <span className="material-symbols-outlined text-slate-400 text-lg">calendar_today</span>
+                      <div>
+                        <p className={`text-sm font-black ${c.text} capitalize`}>{dayName}</p>
+                        <p className="text-[9px] text-slate-500 uppercase tracking-widest">{selectedMeeting.time} · {durLabel}</p>
+                      </div>
+                    </div>
+                    {proj && (
+                      <div className="flex items-center gap-3 p-4 rounded-2xl border bg-white/5 border-white/5">
+                        {proj.logoUrl && <img src={proj.logoUrl} className="w-8 h-8 rounded-xl object-cover border border-white/20" />}
+                        <div>
+                          <p className="text-sm font-black text-white">{proj.name}</p>
+                          <p className="text-[9px] text-slate-500 uppercase tracking-widest">Proyecto relacionado</p>
+                        </div>
+                      </div>
+                    )}
+                    {selectedMeeting.notes && (
+                      <div className="p-4 rounded-2xl bg-white/5 border border-white/5">
+                        <p className="text-[9px] text-slate-500 uppercase tracking-widest mb-1">Agenda</p>
+                        <p className="text-sm text-slate-300 leading-relaxed">{selectedMeeting.notes}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Meet Actions */}
+                  {selectedMeeting.hasMeet && selectedMeeting.meetLink && (
+                    <div className="space-y-3">
+                      <div className="p-4 rounded-2xl bg-orange-500/10 border border-orange-500/30">
+                        <p className="text-[8px] text-orange-400 uppercase tracking-widest font-black mb-2">Link de Videoconferencia</p>
+                        <p className="text-xs text-orange-300 font-mono break-all">{selectedMeeting.meetLink}</p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <a href={selectedMeeting.meetLink} target="_blank" rel="noreferrer"
+                          className="flex items-center justify-center gap-2 py-4 bg-orange-500 hover:bg-orange-400 text-white font-black text-[10px] uppercase rounded-2xl shadow-2xl transition-all active:scale-95">
+                          <span className="material-symbols-outlined text-lg">videocam</span>
+                          Entrar
+                        </a>
+                        <button onClick={() => handleCopyInvite(selectedMeeting)}
+                          className={`flex items-center justify-center gap-2 py-4 font-black text-[10px] uppercase rounded-2xl border transition-all active:scale-95 ${
+                            copiedMeet ? 'bg-orange-500/20 border-orange-500/40 text-orange-300' : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'
+                          }`}>
+                          <span className="material-symbols-outlined text-lg">{copiedMeet ? 'check' : 'content_copy'}</span>
+                          {copiedMeet ? 'Copiado!' : 'Copiar'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {/* Eliminar */}
+                  <button onClick={() => handleDeleteMeeting(selectedMeeting)} disabled={isDeletingMeeting}
+                    className="w-full py-4 bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500 hover:text-white font-black text-[10px] uppercase rounded-2xl transition-all active:scale-95 disabled:opacity-50">
+                    {isDeletingMeeting ? 'Eliminando...' : 'Eliminar Reunión'}
+                  </button>
+                </>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

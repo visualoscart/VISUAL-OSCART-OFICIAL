@@ -76,7 +76,7 @@ const ClientHub: React.FC = () => {
   
   // Estado para la subpestaña de la Bóveda de Activos
   const [vaultSubTab, setVaultSubTab] = useState<'media' | 'text'>('media');
-  const [selectedClientClassification, setSelectedClientClassification] = useState<string>('');
+  const [selectedClientClassification, setSelectedClientClassification] = useState<string>('Todos');
 
   // Estados para descarga de PDF
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
@@ -301,13 +301,8 @@ const ClientHub: React.FC = () => {
   // Sincronizar clasificación inicial de la bóveda
   useEffect(() => {
     if (clientProject) {
-      const cats = Array.from(new Set([
-        ...(clientProject.mediaClassifications || []),
-        ...(clientProject.typography?.mediaClassifications || []),
-        ...(clientProject.mediaRepository || []).map(m => m.classification).filter(Boolean)
-      ]));
-      if (cats.length > 0 && (!selectedClientClassification || !cats.includes(selectedClientClassification))) {
-        setSelectedClientClassification(cats[0]);
+      if (!selectedClientClassification) {
+        setSelectedClientClassification('Todos');
       }
     }
   }, [clientProject, selectedClientClassification]);
@@ -1158,6 +1153,21 @@ const ClientHub: React.FC = () => {
                         <div className="glass-panel p-5 rounded-[2rem] border border-white/5 bg-background-dark/30 space-y-4 text-left">
                           <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Clasificaciones</h4>
                           <div className="flex flex-col gap-1.5">
+                            {/* Opción Todos para ver el consolidado completo */}
+                            <button
+                              onClick={() => setSelectedClientClassification('Todos')}
+                              className={`w-full text-left px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-between cursor-pointer ${
+                                selectedClientClassification === 'Todos'
+                                  ? 'bg-primary text-white shadow-md font-black'
+                                  : 'text-slate-400 hover:text-white hover:bg-white/5'
+                              }`}
+                            >
+                              <span className="truncate pr-2">Todos</span>
+                              <span className="text-[8px] bg-white/5 px-2 py-0.5 rounded border border-white/5 text-slate-400 font-mono shrink-0">
+                                {clientProject.mediaRepository?.length || 0}
+                              </span>
+                            </button>
+
                             {Array.from(new Set([
                               ...(clientProject.mediaClassifications || []),
                               ...(clientProject.typography?.mediaClassifications || []),
@@ -1189,6 +1199,7 @@ const ClientHub: React.FC = () => {
                       <div className="flex-1 w-full">
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 pr-2">
                           {((clientProject.mediaRepository || []).filter(media => {
+                            if (selectedClientClassification === 'Todos' || !selectedClientClassification) return true;
                             return media.classification === selectedClientClassification;
                           })).map((media: MediaAsset) => (
                             <div key={media.id} className="glass-panel p-5 rounded-[2rem] border border-white/5 flex flex-col justify-between hover:border-primary/20 transition-all shadow-xl bg-slate-900/40">
@@ -1213,6 +1224,7 @@ const ClientHub: React.FC = () => {
                             </div>
                           ))}
                           {((clientProject.mediaRepository || []).filter(media => {
+                            if (selectedClientClassification === 'Todos' || !selectedClientClassification) return true;
                             return media.classification === selectedClientClassification;
                           })).length === 0 && (
                             <div className="col-span-full py-20 text-center glass-panel rounded-[2.5rem] border border-white/5">
